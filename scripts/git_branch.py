@@ -6,10 +6,7 @@ PlatformIO pre-build script: inject git info into version defines.
   production:    1.1.0               (when $CROSSINK_RELEASE_VERSION is set)
                  1.1.0-<device>      (sticky/x4-pro/x4-classic; nightly CI sets
                                       $CROSSINK_RELEASE_VERSION=1.1.0-nightly.<date>)
-  RC:            1.1.0-<hash>-RC      (when $CROSSINK_RC_HASH is set)
   test & debug:          1.2.6-<branch>+<5-char-hash>
-  gh_release_rc: 1.1.0-<hash>-RC       (hash from $CROSSINK_RC_HASH in CI,
-                                        or from git locally)
 
 Simulator environments set CROSSINK_VERSION directly in platformio.ini.
 """
@@ -130,12 +127,6 @@ def get_crossink_version(project_dir):
     return config.get('crossink', 'version')
 
 
-def get_release_candidate_version(project_dir):
-    short_hash = os.environ.get('CROSSINK_RC_HASH') or get_git_short_hash(project_dir)
-    base_version = re.sub(r'-RC$', '', get_crossink_version(project_dir), flags=re.IGNORECASE)
-    return f'{base_version}-{sanitize_version_component(short_hash)}-RC'
-
-
 def get_production_version(project_dir):
     release_version = os.environ.get('CROSSINK_RELEASE_VERSION')
     if release_version:
@@ -144,9 +135,6 @@ def get_production_version(project_dir):
 
 
 def get_hardware_version(project_dir, pioenv):
-    if os.environ.get('CROSSINK_RC_HASH'):
-        return get_release_candidate_version(project_dir)
-
     device_suffix = {
         'default': '', 'sticky': '-sticky', 'x4-pro': '-x4-pro', 'x4-classic': '-x4-classic',
     }[pioenv]
@@ -176,9 +164,7 @@ def inject_version(env):
 
     if pioenv in {'default', 'sticky', 'x4-pro', 'x4-classic'}:
         version_string = get_hardware_version(project_dir, pioenv)
-        if os.environ.get('CROSSINK_RC_HASH'):
-            print(f'CrossInk RC build version: {version_string}')
-        elif os.environ.get('CROSSINK_RELEASE_VERSION'):
+        if os.environ.get('CROSSINK_RELEASE_VERSION'):
             print(f'CrossInk production build version: {version_string}')
         else:
             print(f'CrossInk build version: {version_string}')
@@ -227,12 +213,6 @@ def inject_version(env):
         suffix = f'-{branch}+{short_hash}'
         scoped.append(('CROSSINK_VERSION', f'\\"{ci_version}{suffix}\\"'))
         print(f'CrossInk test build version: {ci_version}{suffix}')
-
-    elif pioenv == 'gh_release_rc':
-        # CI passes CROSSINK_RC_HASH as an env var; locally we derive it from git.
-        version_string = get_release_candidate_version(project_dir)
-        scoped.append(('CROSSINK_VERSION', f'\\"{version_string}\\"'))
-        print(f'CrossInk RC build version: {version_string}')
 
     # Keep changing source identity out of unrelated compile commands.
     if hasattr(env, 'AddBuildMiddleware'):

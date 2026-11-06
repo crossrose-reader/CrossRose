@@ -27,7 +27,7 @@ class BuildIdentityTest(unittest.TestCase):
         globals_ = function.__globals__
         previous = globals_["get_git_short_sha"]
         self.addCleanup(globals_.__setitem__, "get_git_short_sha", previous)
-        for name in ("default", "sticky", "x4-pro", "x4-classic", "debug", "sticky-debug", "x4-pro-debug", "test", "gh_release_rc", "x4-pro-simulator"):
+        for name in ("default", "sticky", "x4-pro", "x4-classic", "debug", "sticky-debug", "x4-pro-debug", "test", "x4-pro-simulator"):
             captures = []
             for sha in ("abc1234", "def5678"):
                 globals_["get_git_short_sha"] = lambda _: sha
@@ -83,10 +83,7 @@ class VersionStringTest(unittest.TestCase):
         self.assertEqual(self.version("x4-pro", CROSSINK_RELEASE_VERSION=nightly), nightly + "-x4-pro")
         self.assertEqual(self.version("x4-classic", CROSSINK_RELEASE_VERSION=nightly), nightly + "-x4-classic")
 
-    def test_rc_and_debug_versions_are_unchanged(self):
-        self.assertEqual(self.version("default", CROSSINK_RC_HASH="a1b2c"), "0.1.0-a1b2c-RC")
-        self.assertEqual(self.version("sticky", CROSSINK_RC_HASH="a1b2c"), "0.1.0-a1b2c-RC")
-        self.assertEqual(self.version("gh_release_rc", CROSSINK_RC_HASH="a1b2c"), "0.1.0-a1b2c-RC")
+    def test_debug_versions_are_unchanged(self):
         self.assertEqual(self.version("debug"), "0.1.0-fix-rcfoo+a1b2c")
         self.assertEqual(self.version("x4-pro-debug"), "0.1.0-fix-rcfoo+a1b2c")
 
