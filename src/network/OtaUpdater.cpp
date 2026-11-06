@@ -28,7 +28,10 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback, void*, s
 
 namespace {
 #ifndef CROSSINK_OTA_RELEASE_URL
-#define CROSSINK_OTA_RELEASE_URL "https://api.github.com/repos/uxjulia/CrossInk/releases/latest"
+// CrossRose devices update from CrossRose releases. GitHub's "releases/latest"
+// only returns the newest published stable release: never drafts, and never
+// pre-releases such as the nightly build.
+#define CROSSINK_OTA_RELEASE_URL "https://api.github.com/repos/crossrose-reader/CrossRose/releases/latest"
 #endif
 
 constexpr char latestReleaseUrl[] = CROSSINK_OTA_RELEASE_URL;
@@ -51,7 +54,7 @@ constexpr char OTA_STAGE_PATH[] = "/.crosspoint/ota-update.bin";
 struct ParsedVersion {
   int segments[VERSION_SEGMENT_COUNT] = {0, 0, 0, 0};
   bool valid = false;
-  bool releaseCandidate = false;
+  bool prerelease = false;
 };
 
 bool isDigit(const char c) { return c >= '0' && c <= '9'; }
@@ -62,10 +65,15 @@ bool startsWithNumberAfterOptionalV(const char* version) {
   return isDigit(version[0]);
 }
 
-bool containsRcMarker(const char* version) {
+// A pre-release is a test build made before a stable release with the same
+// number: a release candidate ("1.6.1-RC") or a nightly ("2026.12.0-nightly.20261201").
+// The stable release counts as newer than its own pre-releases, so a device on a
+// nightly is offered the stable release when it comes out.
+bool containsPrereleaseMarker(const char* version) {
   if (version == nullptr) return false;
-  for (const char* p = version; p[0] != '\0' && p[1] != '\0' && p[2] != '\0'; ++p) {
-    if (p[0] == '-' && (p[1] == 'r' || p[1] == 'R') && (p[2] == 'c' || p[2] == 'C')) {
+  for (const char* p = version; *p != '\0'; ++p) {
+    if (*p != '-') continue;
+    if (strncasecmp(p + 1, "rc", 2) == 0 || strncasecmp(p + 1, "nightly", 7) == 0) {
       return true;
     }
   }
@@ -96,7 +104,7 @@ ParsedVersion parseVersion(const char* version) {
   }
 
   parsed.valid = true;
-  parsed.releaseCandidate = containsRcMarker(version);
+  parsed.prerelease = containsPrereleaseMarker(version);
   return parsed;
 }
 
@@ -111,7 +119,7 @@ int compareVersions(const char* latestVersion, const char* currentVersion) {
     }
   }
 
-  if (current.releaseCandidate && !latest.releaseCandidate) return 1;
+  if (current.prerelease && !latest.prerelease) return 1;
   return 0;
 }
 
@@ -321,10 +329,22 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
     return HTTP_ERROR;
   }
 
+  // Read before cleanup: cleanup frees the client handle.
+  const int httpStatus = esp_http_client_get_status_code(client_handle);
+
   esp_err = esp_http_client_cleanup(client_handle);
   if (esp_err != ESP_OK) {
     LOG_ERR("OTA", "esp_http_client_cleanup Failed : %s", esp_err_to_name(esp_err));
     return INTERNAL_UPDATE_ERROR;
+  }
+
+  // GitHub answers 404 when the repository has no published stable release
+  // yet (before the first one, nightlies do not count). That means "nothing to
+  // install", not a failure: updateAvailable stays false, so the screen shows
+  // "No update" instead of "Update failed".
+  if (httpStatus == 404) {
+    LOG_INF("OTA", "No published release yet (HTTP 404)");
+    return OK;
   }
 
   LOG_DBG("OTA", "Response received: %zu bytes total", totalBytesReceived);
