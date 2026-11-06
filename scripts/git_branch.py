@@ -2,7 +2,10 @@
 PlatformIO pre-build script: inject git info into version defines.
 
   default:       1.1.0-dev+<branch>  (local development builds)
+                 1.1.0-dev+<branch>-<device> (local sticky/x4-pro/x4-classic)
   production:    1.1.0               (when $CROSSINK_RELEASE_VERSION is set)
+                 1.1.0-<device>      (sticky/x4-pro/x4-classic; nightly CI sets
+                                      $CROSSINK_RELEASE_VERSION=1.1.0-nightly.<date>)
   RC:            1.1.0-<hash>-RC      (when $CROSSINK_RC_HASH is set)
   test & debug:          1.2.6-<branch>+<5-char-hash>
   gh_release_rc: 1.1.0-<hash>-RC       (hash from $CROSSINK_RC_HASH in CI,
@@ -144,20 +147,20 @@ def get_hardware_version(project_dir, pioenv):
     if os.environ.get('CROSSINK_RC_HASH'):
         return get_release_candidate_version(project_dir)
 
-    if pioenv == 'default':
-        if os.environ.get('CROSSINK_RELEASE_VERSION'):
-            return get_production_version(project_dir)
-        base_version = get_crossink_version(project_dir)
-        branch = get_git_branch(project_dir)
-        return f'{base_version}-dev+{branch}'
+    device_suffix = {
+        'default': '', 'sticky': '-sticky', 'x4-pro': '-x4-pro', 'x4-classic': '-x4-classic',
+    }[pioenv]
+    if os.environ.get('CROSSINK_RELEASE_VERSION'):
+        return f'{get_production_version(project_dir)}{device_suffix}'
 
-    base_version = (
-        get_production_version(project_dir)
-        if os.environ.get('CROSSINK_RELEASE_VERSION')
-        else get_crossink_version(project_dir)
-    )
-    device_suffix = {'sticky': '-sticky', 'x4-pro': '-x4-pro', 'x4-classic': '-x4-classic'}[pioenv]
-    return f'{base_version}{device_suffix}'
+    # A local build is pre-release code for the next version in platformio.ini.
+    # "-dev" tells the OTA check so, and it then offers that version's stable
+    # release once published; without it a local S3 build would read exactly
+    # like the stable one ("0.1.0-x4-pro"). The device suffix stays last, as in
+    # the stable and nightly names.
+    base_version = get_crossink_version(project_dir)
+    branch = get_git_branch(project_dir)
+    return f'{base_version}-dev+{branch}{device_suffix}'
 
 
 def inject_version(env):

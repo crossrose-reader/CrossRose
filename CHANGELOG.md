@@ -4,10 +4,12 @@
 
 - First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
+- Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
 
 ### Fixed
 
-- Check for updates shows "No update" instead of "Update failed" when there is no stable release yet.
+- Check for updates shows "No update" instead of "Update failed" on test builds (nightly or built from source) when there is no stable release yet.
+- Check for updates offers the stable release to a device running a build made from source for that same version.
 
 ## [v1.6.1] - 2026-10-03
 

@@ -65,15 +65,34 @@ bool startsWithNumberAfterOptionalV(const char* version) {
   return isDigit(version[0]);
 }
 
-// A pre-release is a test build made before a stable release with the same
-// number: a release candidate ("1.6.1-RC") or a nightly ("0.1.0-nightly.20261201").
-// The stable release counts as newer than its own pre-releases, so a device on a
-// nightly is offered the stable release when it comes out.
+bool isAsciiLetter(const char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+
+// True when `p` starts with `marker` as a whole token: "rc" matches "rc", "RC",
+// "rc1", "rc.1" and "rc-x", but not "rcfoo", so a branch name such as
+// "fix/rcfoo" or "feat/devices" is not mistaken for a marker.
+bool startsWithMarkerToken(const char* p, const char* marker, const size_t markerLength) {
+  if (strncasecmp(p, marker, markerLength) != 0) return false;
+  return !isAsciiLetter(p[markerLength]);
+}
+
+// A pre-release is a build made before the stable release with the same
+// number: a release candidate ("1.6.1-RC", "0.1.0-a1b2c-RC"), a nightly
+// ("0.1.0-nightly.20261201"), or a local build of the next version
+// ("0.1.0-dev+main", "0.1.0-dev+main-x4-pro", debug "0.1.0-main+a1b2c").
+// The stable release counts as newer than its own pre-releases, so a device on
+// any of them is offered the stable release when it comes out.
+//
+// Stable builds read "0.1.0" or "0.1.0-x4-pro" and never contain '+': release
+// versions go through git_branch.py's sanitizer, which turns '+' into '-'. So
+// '+' (build metadata: the branch or commit) only appears in local dev and
+// debug builds.
 bool containsPrereleaseMarker(const char* version) {
   if (version == nullptr) return false;
   for (const char* p = version; *p != '\0'; ++p) {
+    if (*p == '+') return true;
     if (*p != '-') continue;
-    if (strncasecmp(p + 1, "rc", 2) == 0 || strncasecmp(p + 1, "nightly", 7) == 0) {
+    if (startsWithMarkerToken(p + 1, "rc", 2) || startsWithMarkerToken(p + 1, "nightly", 7) ||
+        startsWithMarkerToken(p + 1, "dev", 3)) {
       return true;
     }
   }
@@ -338,13 +357,32 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
     return INTERNAL_UPDATE_ERROR;
   }
 
-  // GitHub answers 404 when the repository has no published stable release
-  // yet (before the first one, nightlies do not count). That means "nothing to
-  // install", not a failure: updateAvailable stays false, so the screen shows
-  // "No update" instead of "Update failed".
+  // esp_http_client_perform() has already followed any redirects, so this is
+  // the final answer. GitHub answers 404 both when the repository has no
+  // published stable release yet (nightlies do not count) and when the URL or
+  // repository is wrong.
+  // - A pre-release build (nightly, RC, local dev or debug), or one whose
+  //   version can't be parsed (the "dev" fallback when git_branch.py set no
+  //   version), can run before any stable release exists. For it 404 means
+  //   "nothing to install": updateAvailable stays false and the screen shows
+  //   "No update".
+  // - Stable binaries are normally installed only after their release is
+  //   published, so for a stable build 404 most likely means the release URL
+  //   is broken: report a failure. The exception is a binary flashed from the
+  //   first release while it is still a draft; it reports this failure until
+  //   that release is published.
   if (httpStatus == 404) {
-    LOG_INF("OTA", "No published release yet (HTTP 404)");
-    return OK;
+    const ParsedVersion running = parseVersion(AppVersion::version());
+    if (!running.valid || running.prerelease) {
+      LOG_INF("OTA", "No published stable release yet (HTTP 404)");
+      return OK;
+    }
+    LOG_ERR("OTA", "Release not found (HTTP 404; wrong URL, or release still a draft?): %s", latestReleaseUrl);
+    return HTTP_ERROR;
+  }
+  if (httpStatus < 200 || httpStatus >= 300) {
+    LOG_ERR("OTA", "Release check failed (HTTP %d): %s", httpStatus, latestReleaseUrl);
+    return HTTP_ERROR;
   }
 
   LOG_DBG("OTA", "Response received: %zu bytes total", totalBytesReceived);
