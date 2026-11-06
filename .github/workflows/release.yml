@@ -132,6 +132,17 @@ jobs:
           merge-multiple: true
           path: release-firmware
 
+      - name: Package the SD language files
+        # The firmware builds in English only. Other menu languages and the
+        # hyphenation packs install from this zip (docs/languages.md), as on
+        # CrossInk releases. Plain Python, no secrets.
+        run: |
+          set -euo pipefail
+          python3 scripts/package_languages.py \
+            --version "$VERSION" \
+            --source-commit "${{ needs.prepare.outputs.sha }}" --status release-build \
+            --output "release-firmware/crossink-languages-$VERSION.zip"
+
       - name: Copy this version's notes from CHANGELOG.md
         run: |
           set -euo pipefail
@@ -174,4 +185,6 @@ jobs:
           # you publish it in the web page, the "Set as the latest release"
           # checkbox decides. That is why the notes above carry a warning too.
           make_latest: ${{ env.MAKE_LATEST }}
-          files: release-firmware/*.bin
+          files: |
+            release-firmware/*.bin
+            release-firmware/crossink-languages-*.zip

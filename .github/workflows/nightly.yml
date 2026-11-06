@@ -146,6 +146,16 @@ jobs:
           merge-multiple: true
           path: nightly-firmware
 
+      - name: Package the SD language files
+        # The firmware builds in English only. Other menu languages and the
+        # hyphenation packs install from this zip (docs/languages.md).
+        run: |
+          set -euo pipefail
+          python3 scripts/package_languages.py \
+            --version "$VERSION" \
+            --source-commit "$SHA" --status release-build \
+            --output "nightly-firmware/crossink-languages-$VERSION.zip"
+
       - name: Write release notes
         run: |
           set -euo pipefail
@@ -156,6 +166,10 @@ jobs:
             echo "Your device will not install it from *Check for updates*. Download the"
             echo "\`.bin\` for your device below and flash it by hand."
             echo "When the next stable version comes out, *Check for updates* offers it again."
+            echo "Boox Picco: install over USB only. It has no *Check for updates*."
+            echo
+            echo "Menu languages other than English, and hyphenation packs, are in"
+            echo "\`crossink-languages-$VERSION.zip\`. See docs/languages.md."
             echo
             echo "- Version: \`$VERSION\`"
             echo "- Commit: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
@@ -199,7 +213,7 @@ jobs:
 
           if gh release view nightly --repo "$REPO" --json assets --jq '.assets[].name' > old-assets.txt 2> view-error.txt; then
             # 1. Add the new files (same-day re-runs replace files with the same name).
-            gh release upload nightly nightly-firmware/*.bin --repo "$REPO" --clobber
+            gh release upload nightly nightly-firmware/* --repo "$REPO" --clobber
             gh release edit nightly --repo "$REPO" \
               --title "Nightly $VERSION" \
               --notes-file nightly-notes.md \
@@ -221,7 +235,7 @@ jobs:
                 # already downloaded, so the gap is a few seconds.
                 echo "::warning::Could not move the nightly tag. Making the Nightly release again."
                 gh release delete nightly --repo "$REPO" --cleanup-tag --yes
-                gh release create nightly nightly-firmware/*.bin \
+                gh release create nightly nightly-firmware/* \
                   --repo "$REPO" \
                   --target "$SHA" \
                   --title "Nightly $VERSION" \
@@ -238,7 +252,7 @@ jobs:
             if tag_exists; then
               gh api --silent -X DELETE "repos/$REPO/git/refs/tags/nightly"
             fi
-            gh release create nightly nightly-firmware/*.bin \
+            gh release create nightly nightly-firmware/* \
               --repo "$REPO" \
               --target "$SHA" \
               --title "Nightly $VERSION" \
