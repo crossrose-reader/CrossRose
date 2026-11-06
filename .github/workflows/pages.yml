@@ -1,12 +1,10 @@
 name: Deploy Pages
 
+# CrossRose has no docs website yet, so this only runs when started by hand.
+# Before the first run: Settings > Pages > Source: GitHub Actions, and change
+# docs/CNAME and site/astro.config.mjs (they still point at crossink.dev).
+# Then add the "push" trigger back.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "site/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

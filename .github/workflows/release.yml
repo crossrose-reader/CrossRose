@@ -1,46 +1,67 @@
-name: Compile Release
+# Stable release.
+#
+# Starts when you push a version tag such as v2026.12.0.
+# Make the tag with scripts/release.sh, it does all the checks first:
+#
+#   ./scripts/release.sh 2026.12.0 2027.03.0
+#   git push --atomic origin main v2026.12.0
+#
+# This workflow then:
+#   1. checks the tag (format, platformio.ini version, commit is on main),
+#   2. builds the firmware for every device,
+#   3. makes a DRAFT release with the .bin files and the CHANGELOG notes.
+#
+# A draft is private. Read it on the Releases page, then press "Publish release".
+# Only after you publish do devices see it in "Check for updates".
+
+name: Release
+
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Compile release builds"
-        required: true
-        type: string
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: write
 
 jobs:
-  prepare-release:
+  prepare:
+    if: github.repository == 'crossrose-reader/CrossRose'
     runs-on: ubuntu-latest
     outputs:
-      release_version: ${{ steps.version.outputs.release_version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.RELEASE_PAT }}
           fetch-depth: 0
 
-      - name: Verify release tag is on main
-        if: github.event_name == 'push'
-        run: |
-          git fetch origin main:refs/remotes/origin/main
-          TAG_COMMIT="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
-          git merge-base --is-ancestor "$TAG_COMMIT" origin/main
-
-      - name: Resolve release version
+      - name: Check the tag
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME#v}"
-          fi
-          VERSION="${VERSION#v}"
-          echo "release_version=$VERSION" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
 
-  build-release:
-    needs: prepare-release
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not a stable version like v2026.12.0"
+            exit 1
+          fi
+
+          INI_VERSION="$(sed -n '/^\[crossink\]$/,/^\[/s/^version = //p' platformio.ini | head -n1)"
+          if [ "$INI_VERSION" != "$VERSION" ]; then
+            echo "::error::platformio.ini says version $INI_VERSION, but the tag is $GITHUB_REF_NAME. Use scripts/release.sh."
+            exit 1
+          fi
+
+          # The tagged commit must already be on main or on a release/ branch.
+          git fetch --quiet origin '+refs/heads/*:refs/remotes/origin/*'
+          if ! git branch -r --contains HEAD | grep -qE '^\s*origin/(main|release/.+)$'; then
+            echo "::error::$GITHUB_REF_NAME points at a commit that is not on main or a release/ branch."
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -94,40 +115,25 @@ jobs:
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
 
-      - name: Configure release version
+      - name: Build CrossRose
         env:
-          RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
-        run: |
-          sed -i "/^\[crossink\]$/,/^\[/s/^version = .*/version = $RELEASE_VERSION/" platformio.ini
-
-      - name: Build CrossInk
-        env:
-          CROSSINK_RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+          CROSSINK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: pio run -j1 -e ${{ matrix.environment }}
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
           name: release-firmware-${{ matrix.environment }}
-          path: .pio/build/${{ matrix.environment }}/${{ matrix.firmware }}-v${{ needs.prepare-release.outputs.release_version }}.bin
+          path: .pio/build/${{ matrix.environment }}/${{ matrix.firmware }}-v${{ needs.prepare.outputs.version }}.bin
           if-no-files-found: error
 
-  publish-release:
-    needs:
-      - prepare-release
-      - build-release
+  publish:
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.RELEASE_PAT }}
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
 
       - name: Download firmware artifacts
         uses: actions/download-artifact@v7
@@ -136,58 +142,28 @@ jobs:
           merge-multiple: true
           path: release-firmware
 
-      - name: Generate release catalog
+      - name: Copy this version's notes from CHANGELOG.md
         run: |
-          python3 scripts/generate_release_catalog.py \
-            --version "${{ env.RELEASE_VERSION }}" \
-            --repo "${{ github.repository }}" \
-            --firmware "release-firmware/firmware-x3-x4-v${{ env.RELEASE_VERSION }}.bin" \
-            --firmware "release-firmware/firmware-sticky-v${{ env.RELEASE_VERSION }}.bin" \
-            --firmware "release-firmware/firmware-x4-pro-v${{ env.RELEASE_VERSION }}.bin" \
-            --firmware "release-firmware/firmware-x4-classic-v${{ env.RELEASE_VERSION }}.bin" \
-            --output ".pio/build/catalog"
-
-      - name: Publish catalog to GitHub Pages source
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          CROSSINK_SIGNING_SSH_KEY: ${{ secrets.CROSSINK_SIGNING_SSH_KEY }}
-        run: |
-          if [ -z "$CROSSINK_SIGNING_SSH_KEY" ]; then
-            echo "::error::CROSSINK_SIGNING_SSH_KEY is not set"
-            exit 1
+          set -euo pipefail
+          # Everything between "## [v<version>]" and the next "## [" heading.
+          awk -v heading="## [v${VERSION}]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::warning::No notes for v$VERSION in CHANGELOG.md. Write them on the draft release."
+            echo "_Write the release notes here._" > release-notes.md
           fi
+          cat release-notes.md
 
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$CROSSINK_SIGNING_SSH_KEY" > ~/.ssh/crossink_actions_signing
-          chmod 600 ~/.ssh/crossink_actions_signing
-          ssh-keygen -y -f ~/.ssh/crossink_actions_signing > ~/.ssh/crossink_actions_signing.pub
-
-          git config user.name "uxjulia"
-          git config user.email "julia@uxj.io"
-          git config gpg.format ssh
-          git config user.signingkey "$HOME/.ssh/crossink_actions_signing.pub"
-
-          git fetch origin "$DEFAULT_BRANCH"
-          git worktree add ../crossink-pages "origin/$DEFAULT_BRANCH"
-          cp ".pio/build/catalog" "../crossink-pages/docs/catalog"
-          cd ../crossink-pages
-          if git diff --quiet -- docs/catalog; then
-            echo "docs/catalog is already current"
-            exit 0
-          fi
-          git add docs/catalog
-          git commit -S -m "Update release manifests for v${RELEASE_VERSION}"
-          git push origin "HEAD:$DEFAULT_BRANCH"
-
-      - name: Create GitHub Release
+      - name: Create draft GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          token: ${{ secrets.RELEASE_PAT }}
-          tag_name: v${{ env.RELEASE_VERSION }}
-          target_commitish: ${{ github.sha }}
+          tag_name: v${{ env.VERSION }}
+          name: CrossRose ${{ env.VERSION }}
+          body_path: release-notes.md
+          # Adds the list of merged pull requests and thanks new contributors.
+          generate_release_notes: true
           draft: true
-          files: |
-            release-firmware/firmware-x3-x4-v${{ env.RELEASE_VERSION }}.bin
-            release-firmware/firmware-sticky-v${{ env.RELEASE_VERSION }}.bin
-            release-firmware/firmware-x4-pro-v${{ env.RELEASE_VERSION }}.bin
-            release-firmware/firmware-x4-classic-v${{ env.RELEASE_VERSION }}.bin
+          files: release-firmware/*.bin

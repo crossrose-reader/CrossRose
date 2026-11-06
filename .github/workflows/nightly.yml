@@ -1,0 +1,210 @@
+# Nightly build.
+#
+# Every night this builds the newest `main` and puts the firmware on ONE
+# release page called "Nightly" (tag: `nightly`). Each new nightly replaces
+# the one before, so the Releases page does not fill up.
+#
+# The nightly is marked as a pre-release. Devices never get it from
+# "Check for updates": that only looks at the newest stable release.
+# People who want to test it download the .bin by hand.
+#
+# Version names look like: 2026.12.0-nightly.20261201
+#   2026.12.0 = the next stable version (from platformio.ini, [crossink] version)
+#   20261201  = the date of the build (year, month, day)
+#
+# If nothing was merged into main since the last nightly, the build is skipped.
+# You can also start it by hand: Actions > Nightly > Run workflow.
+
+name: Nightly
+
+on:
+  schedule:
+    # 02:17 UTC every day (04:17 in Israel in winter). Not on the hour,
+    # because GitHub is busiest at :00 and scheduled runs start late.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build even if main has not changed since the last nightly"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Never run two nightlies at the same time.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Only CrossRose itself makes nightlies, not people's forks of it.
+    if: github.repository == 'crossrose-reader/CrossRose'
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.meta.outputs.should_build }}
+      version: ${{ steps.meta.outputs.version }}
+      sha: ${{ steps.meta.outputs.sha }}
+      previous_sha: ${{ steps.meta.outputs.previous_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Decide if a new nightly is needed
+        id: meta
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          PREVIOUS="$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "previous_sha=$PREVIOUS" >> "$GITHUB_OUTPUT"
+
+          if [ "$SHA" = "$PREVIOUS" ] && [ "$FORCE" != "true" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::main has not changed since the last nightly (${SHA::7}). Skipping."
+            exit 0
+          fi
+
+          BASE="$(sed -n '/^\[crossink\]$/,/^\[/s/^version = //p' platformio.ini | head -n1)"
+          # A nightly must be named after a version that is NOT out yet.
+          # Otherwise devices on the nightly would be offered that older
+          # stable release as an "update".
+          if git rev-parse -q --verify "refs/tags/v$BASE" >/dev/null; then
+            echo "::error::v$BASE is already released. Set [crossink] version in platformio.ini on main to the next target (scripts/release.sh does this)."
+            exit 1
+          fi
+          VERSION="${BASE}-nightly.$(date -u +%Y%m%d)"
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Building nightly $VERSION from ${SHA::7}"
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: default
+            firmware: firmware-x3-x4
+          - environment: sticky
+            firmware: firmware-sticky
+          - environment: x4-pro
+            firmware: firmware-x4-pro
+          - environment: x4-classic
+            firmware: firmware-x4-classic
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          submodules: recursive
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-platformio-py3.14-core6.1.19-${{ hashFiles('platformio.ini', 'platformio.local.example.ini') }}
+
+      - name: Install PlatformIO Core
+        run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+
+      - name: Pin pioarduino core inside the platform penv
+        env:
+          PIO_ENV: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          # Same fix as release.yml, see
+          # https://github.com/pioarduino/platform-espressif32/issues/529
+          pio pkg install -e "$PIO_ENV"
+          uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
+
+      - name: Build CrossRose nightly
+        env:
+          # The build scripts put this version on the device and in the file name.
+          CROSSINK_RELEASE_VERSION: ${{ needs.check.outputs.version }}
+        run: pio run -j1 -e ${{ matrix.environment }}
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-firmware-${{ matrix.environment }}
+          path: .pio/build/${{ matrix.environment }}/${{ matrix.firmware }}-v${{ needs.check.outputs.version }}.bin
+          if-no-files-found: error
+
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+      PREVIOUS_SHA: ${{ needs.check.outputs.previous_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: nightly-firmware-*
+          merge-multiple: true
+          path: nightly-firmware
+
+      - name: Write release notes
+        run: |
+          set -euo pipefail
+          {
+            echo "**Nightly build. For testing only.**"
+            echo
+            echo "This is the newest \`main\`, built automatically. It can have bugs."
+            echo "Your device will not install it from *Check for updates*. Download the"
+            echo "\`.bin\` for your device below and flash it by hand."
+            echo "When the next stable version comes out, *Check for updates* offers it again."
+            echo
+            echo "- Version: \`$VERSION\`"
+            echo "- Commit: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
+            echo
+            if [ -n "$PREVIOUS_SHA" ] && git cat-file -e "$PREVIOUS_SHA^{commit}" 2>/dev/null; then
+              echo "### New since the last nightly"
+              echo
+              git log --no-merges --format='- %s (%h)' "$PREVIOUS_SHA..$SHA"
+            else
+              echo "### Latest changes"
+              echo
+              git log --no-merges --format='- %s (%h)' -n 20 "$SHA"
+            fi
+          } > nightly-notes.md
+          cat nightly-notes.md
+
+      - name: Replace the Nightly release
+        run: |
+          set -euo pipefail
+          # Remove the old nightly (release + tag), then make the new one.
+          gh release delete nightly --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          gh release create nightly nightly-firmware/*.bin \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SHA" \
+            --title "Nightly $VERSION" \
+            --notes-file nightly-notes.md \
+            --prerelease \
+            --latest=false
