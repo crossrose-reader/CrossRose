@@ -22,16 +22,28 @@ CrossRose has two kinds of releases:
 - **Stable** ([latest stable release](https://github.com/crossrose-reader/CrossRose/releases/latest)): tested releases, numbered like `v0.1.0`. Version 1.0.0 will be the first big release. Pick this one if you are not sure.
 - **Nightly** ([nightly release](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly)): the newest code, built every night. For testing. It can have bugs.
 
+Until the first stable release (`v0.1.0`) comes out, the stable link shows an
+empty page. Use the nightly until then.
+
 Each release has one `firmware-*.bin` file per device. Download the one for your device:
 
-| Device | File |
-| --- | --- |
-| Xteink X3, X4 | `firmware-x3-x4-*.bin` |
-| Xteink X4 Pro | `firmware-x4-pro-*.bin` |
-| Xteink X4 Classic | `firmware-x4-classic-*.bin` |
-| Seeed Studio Sticky | `firmware-sticky-*.bin` |
+| Device | How to tell | File |
+| --- | --- | --- |
+| Xteink X4 | Up/Down buttons on the right side, USB-C port | `firmware-x3-x4-*.bin` |
+| Xteink X3 | Up/Down buttons on both sides, POGO port, power button on top | `firmware-x3-x4-*.bin` |
+| Xteink X4 Classic (also called X4 V2) | Up/Down buttons on both sides, POGO port, power button on the right side | `firmware-x4-classic-*.bin` |
+| Xteink X4 Pro | Touchscreen with a front light | `firmware-x4-pro-*.bin` |
+| Seeed Studio Sticky | Sold by Seeed Studio as the reTerminal Sticky | `firmware-sticky-*.bin` |
 
-To go back to an earlier version, download that version's file from the [releases page](https://github.com/crossrose-reader/CrossRose/releases) and install it the same way.
+Check the file name before you install. A file made for another reader can
+damage it. The web installer only checks the chip type, so it cannot tell the
+X4 Pro, X4 Classic and Sticky files apart. The SD card update in CrossRose, and
+in CrossInk 1.5.1 or newer, refuses a file made for another reader.
+
+To go back to an earlier stable version, download that version's file from the
+[releases page](https://github.com/crossrose-reader/CrossRose/releases) and
+install it the same way. Only the newest nightly is kept. To go back to
+CrossInk, install it with [Inky](https://inky.crossink.dev/#flash-tools).
 
 ## Web Installation via USB
 
@@ -45,8 +57,8 @@ computer.
 1. Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)).
 2. Open [https://crosspointreader.com/install](https://crosspointreader.com/install) in Chrome or Edge on a computer.
 3. Select your device. The X4 Classic is listed as **Xteink X4C**.
-4. Open **Advanced options**, click **Custom .bin**, and choose the file you downloaded.
-5. Connect the reader with a USB-C data cable. Click **Flash**, choose your reader in the browser's list, and click **Connect**.
+4. Open **Advanced options** and click **Custom .bin**. Then click **Choose firmware file…** (next to the **Flash** button) and pick the file you downloaded.
+5. Connect the reader with a USB cable that carries data, not only power. The X3 and X4 Classic connect through their POGO port. Click **Flash**, choose your reader in the browser's list, and click **Connect**.
 6. Keep the cable connected until the page says the firmware is installed. Then follow the restart steps on the page.
 
 If the reader does not show up in the browser's list, try another cable or USB
@@ -55,51 +67,63 @@ port. If it still does not show up, USB may be turned off on your device: see
 
 ## USB Drive
 
-On X4 Pro, choose `Home > File Transfer > USB Drive` to expose the SD card to
-your computer. Eject the drive from the computer before disconnecting it; the
-reader restarts to Home when the drive is safely ejected or the cable is
-removed.
+On X4 Pro and X4 Classic, choose `Home > File Transfer > USB Drive` to expose
+the SD card to your computer. Eject the drive from the computer before
+disconnecting it; the reader restarts to Home when the drive is safely ejected
+or the cable is removed.
 
 ## SD Card Firmware Update
 
-#### For updating CrossRose, or switching from CrossInk to CrossRose. Can be used by USB locked devices.
+#### For updating CrossRose, or switching from CrossInk or CrossPoint to CrossRose. Can be used by USB locked devices.
 
-Use this when your reader already runs CrossRose, CrossInk, or another firmware
-with an SD card update menu.
+Use this when your reader already runs CrossRose, CrossInk 1.2.10 or newer, or
+CrossPoint.
 
 1. Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)).
 2. Place the file on your SD card. You can place this file anywhere.
 3. Go to `Settings > System > SD Card Firmware Update` and navigate to the `.bin` file and update.
+
+If `SD Card Firmware Update` is not in the menu, the firmware on your reader is
+too old. Update it first with `Settings > System > Check for updates`, then try
+again.
 
 ## USB Locked Devices
 
 Some readers have USB data transfer disabled. The web installer cannot reach
 them, so use the SD card instead.
 
-**If the reader already runs CrossInk, CrossPoint, or another firmware with an
-SD card update menu:** follow [SD Card Firmware Update](#sd-card-firmware-update).
+**If the reader already runs CrossRose, CrossInk or CrossPoint:** follow
+[SD Card Firmware Update](#sd-card-firmware-update).
 
 **If the reader still runs the stock Xteink firmware:** install CrossInk first,
 then switch to CrossRose.
 
-1. Go to [Inky](https://inky.crossink.dev/#flash-tools), check "I have a locked device", select your device, and follow the steps to install CrossInk. On the X4 Pro and X4 Classic, Inky first sends you to the [OTA Unlocker](https://crosspointreader.com/unlocker).
+1. Go to [Inky](https://inky.crossink.dev/#flash-tools), check "I have a locked device", select your device, and follow the steps to install CrossInk. Pick a stable version, not a pre-release. On the X4 Pro and X4 Classic, Inky first sends you to the [OTA Unlocker](https://crosspointreader.com/unlocker).
 2. Follow [SD Card Firmware Update](#sd-card-firmware-update) to install CrossRose.
 
 CrossInk is marked "safe" on [Brick Club](https://brickclub.pages.dev/), a
-community list of firmware for locked devices. CrossRose is not on that list
-yet, so this guide takes the two-step way.
+community list that rates how safely each Xteink firmware flashes on locked X3
+and X4 readers. CrossRose is not on that list yet, so this guide takes the
+two-step way.
 
 ## Command Line
 
-These instructions are for macOS and Linux. Windows users should use the web installer.
+These instructions are for macOS and Linux, on the X3, X4, X4 Pro and X4
+Classic. Windows users and Sticky owners should use the
+[web installer](#web-installation-via-usb). On the Sticky, the first install
+also replaces the bootloader and partition table, which these commands do not do.
 
-Install `esptool`:
+Install `esptool` 5 or newer with [pipx](https://pipx.pypa.io/):
 
 ```sh
-pip3 install esptool
+pipx install esptool
 ```
 
-Download the `firmware-*.bin` file from the [releases page](https://github.com/crossrose-reader/CrossRose/releases), then connect your device with USB-C.
+If you don't have pipx, install it with `brew install pipx` on macOS or
+`sudo apt install pipx` on Debian and Ubuntu. Then run `pipx ensurepath` and
+open a new terminal.
+
+Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)), then connect your device with a USB data cable.
 
 Find the device port:
 
@@ -111,22 +135,23 @@ dmesg | grep tty
 ls /dev/cu.*
 ```
 
-Flash the firmware:
+The reader keeps firmware in two slots, and an update can leave it starting
+from the second one. The first command below writes the firmware to the first
+slot (`0x10000`). The second clears the slot choice, so the reader starts from
+the first slot. Your books and settings stay.
 
 ```sh
 # Linux
-esptool.py --chip esp32c3 --port /dev/ttyACM0 --baud 921600 write_flash 0x10000 /path/to/firmware.bin
+esptool --chip esp32c3 --port /dev/ttyACM0 --baud 921600 write-flash 0x10000 /path/to/firmware.bin
+esptool --chip esp32c3 --port /dev/ttyACM0 erase-region 0xe000 0x2000
 
 # macOS
-esptool.py --chip esp32c3 --port /dev/cu.usbmodem2101 --baud 921600 write_flash 0x10000 /path/to/firmware.bin
+esptool --chip esp32c3 --port /dev/cu.usbmodem2101 --baud 921600 write-flash 0x10000 /path/to/firmware.bin
+esptool --chip esp32c3 --port /dev/cu.usbmodem2101 erase-region 0xe000 0x2000
 ```
 
 Replace the port and firmware path with your actual values.
 
-The X4 Pro, X4 Classic and Sticky use an ESP32-S3 chip: write `--chip esp32s3`
-instead of `--chip esp32c3`.
-
-The reader keeps firmware in two slots. This command always writes to the first
-one (`0x10000`). If the reader still starts the old version afterwards, it is
-starting from the second slot: use the [web installer](#web-installation-via-usb)
-instead, which picks the right slot for you.
+The X4 Pro and X4 Classic use an ESP32-S3 chip: write `--chip esp32s3` instead
+of `--chip esp32c3`. When the commands finish, unplug the cable and hold the
+power button to start the reader.

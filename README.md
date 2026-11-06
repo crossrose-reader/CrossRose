@@ -9,7 +9,7 @@
 - Xteink X4 Pro
 - Xteink X4 Classic
 - Seeed Studio Sticky
-- Boox Picco
+- Boox Picco (no CrossRose build yet)
 
 ## What's different in this fork
 
@@ -109,7 +109,7 @@ CrossInk runs on an ESP32-C3 with limited RAM, so very large folders or complex 
 
 ## Installation
 
-Download the `firmware-*.bin` file for your device from the [releases page](https://github.com/crossrose-reader/CrossRose/releases). Then install it over USB with the [CrossPoint web installer](https://crosspointreader.com/install) (under **Advanced options**, choose **Custom .bin**), or from the SD card with `Settings > System > SD Card Firmware Update` if your reader already runs CrossRose or CrossInk. Inky, CrossInk's web app, installs CrossInk only.
+Download the `firmware-*.bin` file for your device from the [releases page](https://github.com/crossrose-reader/CrossRose/releases). Then install it over USB with the [CrossPoint web installer](https://crosspointreader.com/install) (under **Advanced options**, choose **Custom .bin**), or from the SD card with `Settings > System > SD Card Firmware Update` if your reader already runs CrossRose, CrossInk 1.2.10 or newer, or CrossPoint. Inky, CrossInk's web app, installs CrossInk only.
 
 | Channel | What it is | Updates |
 | --- | --- | --- |
