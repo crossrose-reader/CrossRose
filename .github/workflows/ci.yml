@@ -79,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment: [default, x4-pro]
+        environment: [default, x4-pro, picco]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -141,12 +141,12 @@ jobs:
       - name: Version names (scripts/git_branch.py)
         run: python3 -m unittest scripts/test_build_identity.py
 
-      - name: Update version rules (test/ota_version)
+      - name: Update version rules and update guards (test/ota_version, test/ota_staging_guard)
         run: |
           set -euo pipefail
           cmake -S test -B build/tests
-          cmake --build build/tests --target OtaVersionTest -j 4
-          ctest --test-dir build/tests -R '^OtaVersion\.' --output-on-failure --no-tests=error
+          cmake --build build/tests --target OtaVersionTest OtaStagingGuardTest -j 4
+          ctest --test-dir build/tests -R '^(OtaVersion|OtaStagingGuard)\.' --output-on-failure --no-tests=error
 
   # This job is used as the PR required actions check, allows for changes to other steps in the future without breaking
   # PR requirements.
