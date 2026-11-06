@@ -1,4 +1,4 @@
-> **This is a personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)** with a focus on improved fonts and minimal reading stats.
+> **This is a fork of [CrossInk Reader]([https://github.com/crosspoint-reader/crosspoint-reader](https://github.com/uxjulia/CrossInk))**
 
 ### Supported Devices
 
@@ -7,10 +7,11 @@
 - Xteink X4 Pro
 - Xteink X4 Classic
 - Seeed Studio Sticky
+- Boox Picco
 
 ## What's different in this fork
 
-My goal with this fork was to maintain the core Crosspoint firmware while integrating my preferred typography and some lightweight reading statistics. I’ve focused on keeping the underlying system stable while layering in a few "nice-to-have" features and UI refinements along the way.
+My goal with this fork is to maintain the core CrossInk firmware while integrating my ideas and improvements.
 
 <table>
   <tr>
