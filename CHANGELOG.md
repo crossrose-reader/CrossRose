@@ -3,7 +3,7 @@
 ### Changed
 
 - First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
-- Versions are now named after the year and month of the release, starting with 2026.12.0.
+- CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 
 ### Fixed
 

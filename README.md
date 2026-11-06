@@ -115,7 +115,7 @@ Download a `firmware-*.bin` from the [releases page](https://github.com/crossros
 
 | Channel | What it is | Updates |
 | --- | --- | --- |
-| **Stable** (`v2026.12.0`, ...) | Tested releases, named after the year and month | Offered by *Check for updates* on the device |
+| **Stable** (`v0.1.0`, ...) | Tested releases. The 0.x versions lead up to 1.0.0 | Offered by *Check for updates* on the device |
 | **Nightly** | The newest code, built every night | Download and flash by hand |
 
 See [Installation](./docs/installation.md) for step-by-step flashing and revert instructions.

@@ -3,10 +3,12 @@
 #
 # Usage: ./scripts/release.sh <version> <next-version>    (on main)
 #        ./scripts/release.sh <version>                   (on a release/ branch)
-#   ./scripts/release.sh 2026.12.0 2027.03.0
+#   ./scripts/release.sh 0.1.0 0.2.0
 #
-# Versions are year.month.fix: 2026.12.0 is the December 2026 release,
-# 2026.12.1 is a bug-fix release for it.
+# Versions are MAJOR.MINOR.PATCH ("semantic versioning"):
+#   0.2.0 -> 0.3.0  new features (MINOR goes up)
+#   0.2.0 -> 0.2.1  only bug fixes (PATCH goes up)
+#   1.0.0           the first big release; 0.x versions lead up to it
 #
 # What it does (on your computer only, nothing is pushed):
 #   1. Checks you are on main (or a release/ branch), with no uncommitted
@@ -29,7 +31,7 @@ NEXT="${2:-}"
 VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
 
 usage() {
-  echo "Usage: $0 <version> <next-version>   (example: $0 2026.12.0 2027.03.0)" >&2
+  echo "Usage: $0 <version> <next-version>   (example: $0 0.1.0 0.2.0)" >&2
   exit 1
 }
 [[ "$VERSION" =~ $VERSION_RE ]] || usage
@@ -55,12 +57,12 @@ git fetch --quiet origin
 grep -q '^## \[Unreleased\]' CHANGELOG.md ||
   fail "CHANGELOG.md has no '## [Unreleased]' section."
 
-# Prints the higher of two versions (compares each number, so 2026.12 > 2026.3).
+# Prints the higher of two versions (compares each number, so 0.10.0 > 0.9.0).
 higher_version() {
   printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1
 }
 if [[ "$BRANCH" == "main" && -z "$NEXT" ]]; then
-  fail "on main, give the next target too, for example: $0 $VERSION 2027.03.0"
+  fail "on main, also give the next version you will work toward: $0 $VERSION <next-version>"
 fi
 if [[ -n "$NEXT" ]]; then
   [[ "$NEXT" != "$VERSION" && "$(higher_version "$VERSION" "$NEXT")" == "$NEXT" ]] ||

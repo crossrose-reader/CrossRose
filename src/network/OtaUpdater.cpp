@@ -66,7 +66,7 @@ bool startsWithNumberAfterOptionalV(const char* version) {
 }
 
 // A pre-release is a test build made before a stable release with the same
-// number: a release candidate ("1.6.1-RC") or a nightly ("2026.12.0-nightly.20261201").
+// number: a release candidate ("1.6.1-RC") or a nightly ("0.1.0-nightly.20261201").
 // The stable release counts as newer than its own pre-releases, so a device on a
 // nightly is offered the stable release when it comes out.
 bool containsPrereleaseMarker(const char* version) {

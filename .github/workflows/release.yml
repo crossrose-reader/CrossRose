@@ -1,10 +1,10 @@
 # Stable release.
 #
-# Starts when you push a version tag such as v2026.12.0.
+# Starts when you push a version tag such as v0.1.0.
 # Make the tag with scripts/release.sh, it does all the checks first:
 #
-#   ./scripts/release.sh 2026.12.0 2027.03.0
-#   git push --atomic origin main v2026.12.0
+#   ./scripts/release.sh 0.1.0 0.2.0
+#   git push --atomic origin main v0.1.0
 #
 # This workflow then:
 #   1. checks the tag (format, platformio.ini version, commit is on main),
@@ -41,7 +41,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
 
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME is not a stable version like v2026.12.0"
+            echo "::error::Tag $GITHUB_REF_NAME is not a stable version like v0.1.0"
             exit 1
           fi
 

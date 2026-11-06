@@ -67,5 +67,6 @@ For a big feature, please open a discussion first, so nobody wastes work.
 ## Releases
 
 - **Nightly**: built every night from `main`. Your change is in the next nightly after it is merged.
-- **Stable**: versions named after the year and month, like `v2026.12.0`.
-  Each stable version has a milestone on GitHub that shows what is planned for it.
+- **Stable**: numbered versions like `v0.1.0`. The 0.x versions lead up to 1.0.0,
+  the first big release. Each planned version has a milestone on GitHub that shows
+  what is planned for it.
