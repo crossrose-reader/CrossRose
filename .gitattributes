@@ -1,1 +1,4 @@
 .github/workflows/*.lock.yml linguist-generated=true
+# Shell scripts must keep LF endings: with CRLF, bash fails on the first line
+# (Git Bash on Windows with core.autocrlf=true would otherwise convert them).
+*.sh text eol=lf

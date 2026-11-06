@@ -8,8 +8,8 @@
 # zeros: 0.1.0, 0.10.2, 1.0.0. Tags add a "v" in front: v0.1.0.
 #
 #   crossrose_version.sh ini [file]
-#       Print [crossink] version from platformio.ini (or <file>).
-#       Spaces around "=" and Windows line endings are fine.
+#       Print [crossink] version from platformio.ini (or <file>; "-" reads
+#       stdin). Spaces around "=" and Windows line endings are fine.
 #       Stops with an error if it is missing or not a stable version.
 #   crossrose_version.sh set-ini <version> [file]
 #       Set [crossink] version in platformio.ini (or <file>).
@@ -24,9 +24,8 @@
 #       With MAJOR.MINOR (like 0.1), only tags of that line count.
 #
 # Works with bash 3.2 (macOS) and newer, and with any POSIX awk (BSD awk on
-# macOS, gawk or mawk on Linux). Git Bash on Windows works only if this file
-# is checked out with LF line endings; with Windows (CRLF) endings bash stops
-# at "set -o pipefail".
+# macOS, gawk or mawk on Linux). .gitattributes keeps *.sh files LF, so Git
+# Bash on Windows works too.
 set -euo pipefail
 
 VERSION_RE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
@@ -135,7 +134,7 @@ if [[ $# -gt 0 ]]; then shift; fi
 case "$cmd" in
 ini)
   file="${1:-platformio.ini}"
-  if [[ ! -f "$file" ]]; then
+  if [[ "$file" != "-" && ! -f "$file" ]]; then
     error "$file not found."
     exit 1
   fi
