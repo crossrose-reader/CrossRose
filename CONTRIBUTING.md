@@ -28,9 +28,10 @@ git switch -c fix/short-name upstream/main
 pio run -e default                  # build for Xteink X3/X4
 pio run -e default --target upload  # flash a connected device
 
-# 5. Format the code, then commit
+# 5. Format the code, then commit (git add -A also picks up new files)
 ./bin/clang-format-fix
-git commit -am "fix: short summary of the change"
+git add -A
+git commit -m "fix: short summary of the change"
 
 # 6. Push to YOUR fork, then open the pull request on GitHub
 git push -u origin fix/short-name
