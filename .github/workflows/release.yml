@@ -38,8 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # All branches and tags, for the checks below.
+          # All branches and tags, for the checks below. blob:none skips the
+          # contents of old files: the checks only need commits and tags.
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Check the tag
