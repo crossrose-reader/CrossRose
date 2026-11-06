@@ -149,12 +149,13 @@ for invalid in ["", "bad\nversion", "bad\x00version"]:
     except ValueError:
         pass
 
-for workflow in ["release.yml", "release_candidate.yml"]:
+# CrossRose: stable and nightly releases attach the SD zip, which carries the
+# English template. CrossInk's RC workflow and its Pages copy of the editor
+# template need CrossInk's secrets and signing key, so CrossRose has neither.
+for workflow in ["release.yml", "nightly.yml"]:
     text = (root / ".github/workflows" / workflow).read_text()
-    assert '--source-commit "${{ github.sha }}" --status release-build' in text
-    assert '/language-template/english_template.yaml' in text
-    assert '/language-template/language-template.json' in text
-assert "cp -R release-firmware/language-template/." in (root / ".github/workflows/release.yml").read_text()
+    assert "scripts/package_languages.py" in text
+    assert "--status release-build" in text
 assert "copyDirectoryWithoutMacMetadata" in (root / "site/scripts/sync_site_assets.mjs").read_text()
 assert "docs/languages/template" in (root / "site/scripts/sync_site_assets.mjs").read_text()
 print("Language editor contract passed: exact source/keyset/template hashes, parser limits, schema, immutable normalized starters and release artifacts")

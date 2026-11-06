@@ -420,55 +420,33 @@ class ReleaseWorkflowTest(unittest.TestCase):
         parts = re.split(r'^  ([a-z0-9-]+):\n', text, flags=re.M)
         return dict(zip(parts[1::2], parts[2::2]))
 
-    def needs(self, job):
-        match = re.search(r'^    needs:([^\n]*)\n((?:      - [^\n]*\n)*)', job, re.M)
-        self.assertIsNotNone(match)
-        return ([match[1].strip()] if match[1].strip() else
-                re.findall(r'^      - ([a-z0-9-]+)$', match[2], re.M))
-
-    def test_stable_and_rc_drafts_require_successful_download_preparation(self):
-        for filename, draft_job, build_job in (
-                ('release.yml', 'publish-release', 'build-release'),
-                ('release_candidate.yml', 'publish-release-candidate', 'build-release-candidate')):
+    # CrossRose: CrossInk gates its drafts on a prepare-language-assets job
+    # that publishes to its own asset host (RELEASE_PAT, an AWS role).
+    # CrossRose has no such host. Its stable and nightly releases carry the
+    # SD language zip instead, packaged in the same job before the release is
+    # made, so a packaging failure stops the release too.
+    def test_releases_carry_the_language_zip_before_they_are_made(self):
+        for filename, publish_marker in (
+                ('release.yml', 'softprops/action-gh-release@'),
+                ('nightly.yml', 'gh release upload nightly nightly-firmware/*')):
             with self.subTest(workflow=filename):
-                jobs = self.jobs(filename)
-                draft, gate = jobs[draft_job], jobs['prepare-language-assets']
-                self.assertIn('softprops/action-gh-release@', draft)
-                self.assertIn('draft: true', draft)
-                self.assertIn('prepare-language-assets', self.needs(draft))
-                self.assertIn(build_job, self.needs(gate))
-                self.assertIn('scripts/prepare_release_downloads.py --tag', gate)
-                self.assertIn('SOURCE_COMMIT: ${{ github.sha }}', gate)
-                self.assertIn('GH_TOKEN: ${{ secrets.RELEASE_PAT }}', gate)
-                self.assertNotIn('continue-on-error:', draft + gate)
-                self.assertNotIn('always()', draft + gate)
-                # GitHub's default needs semantics must block the draft for
-                # failure, cancellation and a skipped preparation workflow.
-                for outcome in ('failure', 'cancelled', 'skipped'):
-                    results = {job: 'success' for job in self.needs(draft)}
-                    results['prepare-language-assets'] = outcome
-                    self.assertFalse(all(results[job] == 'success' for job in self.needs(draft)))
+                job = self.jobs(filename)['publish']
+                package = job.find('scripts/package_languages.py')
+                publish = job.find(publish_marker)
+                self.assertNotEqual(package, -1)
+                self.assertNotEqual(publish, -1)
+                self.assertLess(package, publish)
+                self.assertIn('--status release-build', job)
+                self.assertNotIn('continue-on-error:', job)
+                self.assertNotIn('always()', job)
+        release = self.jobs('release.yml')['publish']
+        self.assertIn('draft: true', release)
+        self.assertIn('release-firmware/crossink-languages-*.zip', release)
 
-    def test_shared_workflow_prepares_both_destinations_without_release_events(self):
-        path = ROOT / '.github/workflows/publish-language-assets.yml'
-        text = path.read_text()
-        self.assertIn('  workflow_dispatch:', text)
-        self.assertNotIn('  release:', text)
-        self.assertNotIn('github.event.release', text)
-        jobs = self.jobs(path.name)
-        self.assertEqual(set(jobs), {'verify-source', 'publish-github', 'publish'})
-        verification = jobs['verify-source']
-        self.assertIn('$GITHUB_REF_TYPE\" == tag', verification)
-        self.assertIn('$GITHUB_SHA\" == \"$SOURCE_COMMIT', verification)
-        for name in ('publish-github', 'publish'):
-            job = jobs[name]
-            self.assertEqual(self.needs(job), ['verify-source'])
-            self.assertIn('ref: ${{ inputs.source_commit }}', job)
-            self.assertIn('--prepare-release "$RELEASE_TAG" --source-commit "$SOURCE_COMMIT"', job)
-            self.assertNotIn('continue-on-error:', job)
-        rc = self.jobs('release_candidate.yml')
-        self.assertIn('rc_tag: ${{ steps.metadata.outputs.rc_tag }}', rc['build-release-candidate'])
-        self.assertIn('RELEASE_TAG: ${{ needs.build-release-candidate.outputs.rc_tag }}', rc['prepare-language-assets'])
+    def test_crossink_only_publication_workflows_are_absent(self):
+        # Both need CrossInk's secrets; CrossRose removed them.
+        for name in ('publish-language-assets.yml', 'release_candidate.yml'):
+            self.assertFalse((ROOT / '.github/workflows' / name).exists(), name)
 
 
 class ReleaseBundleTest(unittest.TestCase):
