@@ -11,6 +11,10 @@ nav_order: 2
 - Xteink X4 Classic and X4 Pro
 - Seeed Studio Sticky
 
+There is no CrossRose build for the Boox Picco yet. Do not install a file made
+for another reader on a Picco. The CrossPoint web installer would accept it,
+because it only checks the chip type.
+
 Don't have a device yet? Get one directly from [Xteink](https://go.sjv.io/X4RGBb) or [Seeed Studio](https://www.seeedstudio.com/reTerminal-Sticky-p-6861.html?sensecap_affiliate=1Nxo3Gw&referring_service=link).
 
 Note: Your purchases using the above affiliate links help support ongoing development of Crossink.
