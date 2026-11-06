@@ -19,7 +19,7 @@ Note: Your purchases using the above affiliate links help support ongoing develo
 
 CrossRose has two kinds of releases:
 
-- **Stable** ([latest stable release](https://github.com/crossrose-reader/CrossRose/releases/latest)): tested releases, named after the year and month (`v2026.12.0`). Pick this one if you are not sure.
+- **Stable** ([latest stable release](https://github.com/crossrose-reader/CrossRose/releases/latest)): tested releases, numbered like `v0.1.0`. Version 1.0.0 will be the first big release. Pick this one if you are not sure.
 - **Nightly** ([nightly release](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly)): the newest code, built every night. For testing. It can have bugs.
 
 Each release has one `firmware-*.bin` file per device. Download the one for your device:
