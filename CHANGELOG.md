@@ -1,3 +1,14 @@
+## [Unreleased]
+
+### Changed
+
+- First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
+- Versions are now named after the year and month of the release, starting with 2026.12.0.
+
+### Fixed
+
+- Check for updates shows "No update" instead of "Update failed" when there is no stable release yet.
+
 ## [v1.6.1] - 2026-10-03
 
 ### Added
