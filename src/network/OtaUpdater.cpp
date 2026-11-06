@@ -11,7 +11,6 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback, void*, s
 #include <Logging.h>
 #include <Memory.h>
 #include <ReleaseJsonParser.h>
-#include <strings.h>
 
 #include <algorithm>
 #include <cstring>
@@ -20,6 +19,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback, void*, s
 #include "AppVersion.h"
 #include "FirmwareFlasher.h"
 #include "OtaUpdater.h"
+#include "OtaVersion.h"
 #include "esp_http_client.h"
 #include "esp_ota_ops.h"
 #include "mbedtls/sha256.h"
@@ -45,102 +45,10 @@ constexpr char firmwareAssetName[] = "firmware.bin";
 #endif
 
 constexpr char binSuffix[] = ".bin";
-constexpr size_t VERSION_SEGMENT_COUNT = 4;
 constexpr size_t OTA_PROGRESS_UPDATE_BYTES = 64 * 1024;
 constexpr size_t OTA_HASH_CHUNK = 4096;
 constexpr char OTA_STAGE_DIR[] = "/.crosspoint";
 constexpr char OTA_STAGE_PATH[] = "/.crosspoint/ota-update.bin";
-
-struct ParsedVersion {
-  int segments[VERSION_SEGMENT_COUNT] = {0, 0, 0, 0};
-  bool valid = false;
-  bool prerelease = false;
-};
-
-bool isDigit(const char c) { return c >= '0' && c <= '9'; }
-
-bool startsWithNumberAfterOptionalV(const char* version) {
-  if (version == nullptr) return false;
-  if ((version[0] == 'v' || version[0] == 'V') && isDigit(version[1])) return true;
-  return isDigit(version[0]);
-}
-
-bool isAsciiLetter(const char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-
-// True when `p` starts with `marker` as a whole token: "rc" matches "rc", "RC",
-// "rc1", "rc.1" and "rc-x", but not "rcfoo", so a branch name such as
-// "fix/rcfoo" or "feat/devices" is not mistaken for a marker.
-bool startsWithMarkerToken(const char* p, const char* marker, const size_t markerLength) {
-  if (strncasecmp(p, marker, markerLength) != 0) return false;
-  return !isAsciiLetter(p[markerLength]);
-}
-
-// A pre-release is a build made before the stable release with the same
-// number: a release candidate ("1.6.1-RC", "0.1.0-a1b2c-RC"), a nightly
-// ("0.1.0-nightly.20261201"), or a local build of the next version
-// ("0.1.0-dev+main", "0.1.0-dev+main-x4-pro", debug "0.1.0-main+a1b2c").
-// The stable release counts as newer than its own pre-releases, so a device on
-// any of them is offered the stable release when it comes out.
-//
-// Stable builds read "0.1.0" or "0.1.0-x4-pro" and never contain '+': release
-// versions go through git_branch.py's sanitizer, which turns '+' into '-'. So
-// '+' (build metadata: the branch or commit) only appears in local dev and
-// debug builds.
-bool containsPrereleaseMarker(const char* version) {
-  if (version == nullptr) return false;
-  for (const char* p = version; *p != '\0'; ++p) {
-    if (*p == '+') return true;
-    if (*p != '-') continue;
-    if (startsWithMarkerToken(p + 1, "rc", 2) || startsWithMarkerToken(p + 1, "nightly", 7) ||
-        startsWithMarkerToken(p + 1, "dev", 3)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-ParsedVersion parseVersion(const char* version) {
-  ParsedVersion parsed;
-  if (!startsWithNumberAfterOptionalV(version)) return parsed;
-
-  const char* p = version;
-  if (p[0] == 'v' || p[0] == 'V') ++p;
-
-  size_t segmentIndex = 0;
-  while (segmentIndex < VERSION_SEGMENT_COUNT) {
-    if (!isDigit(*p)) return parsed;
-
-    int value = 0;
-    while (isDigit(*p)) {
-      value = value * 10 + (*p - '0');
-      ++p;
-    }
-    parsed.segments[segmentIndex] = value;
-    ++segmentIndex;
-
-    if (*p != '.') break;
-    ++p;
-  }
-
-  parsed.valid = true;
-  parsed.prerelease = containsPrereleaseMarker(version);
-  return parsed;
-}
-
-int compareVersions(const char* latestVersion, const char* currentVersion) {
-  const ParsedVersion latest = parseVersion(latestVersion);
-  const ParsedVersion current = parseVersion(currentVersion);
-  if (!latest.valid || !current.valid) return 0;
-
-  for (size_t i = 0; i < VERSION_SEGMENT_COUNT; ++i) {
-    if (latest.segments[i] != current.segments[i]) {
-      return latest.segments[i] > current.segments[i] ? 1 : -1;
-    }
-  }
-
-  if (current.prerelease && !latest.prerelease) return 1;
-  return 0;
-}
 
 bool startsWith(const char* value, const char* prefix) {
   if (value == nullptr || prefix == nullptr) return false;
@@ -372,7 +280,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   //   first release while it is still a draft; it reports this failure until
   //   that release is published.
   if (httpStatus == 404) {
-    const ParsedVersion running = parseVersion(AppVersion::version());
+    const ota_version::ParsedVersion running = ota_version::parse(AppVersion::version());
     if (!running.valid || running.prerelease) {
       LOG_INF("OTA", "No published stable release yet (HTTP 404)");
       return OK;
@@ -418,7 +326,7 @@ bool OtaUpdater::isUpdateNewer() const {
     return false;
   }
 
-  const int comparison = compareVersions(latestVersion.c_str(), AppVersion::version());
+  const int comparison = ota_version::compare(latestVersion.c_str(), AppVersion::version());
   LOG_DBG("OTA", "Version comparison latest=%s current=%s result=%d", latestVersion.c_str(), AppVersion::version(),
           comparison);
   return comparison > 0;

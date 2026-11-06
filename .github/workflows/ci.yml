@@ -121,6 +121,33 @@ jobs:
             grep -E "RAM:\s|Flash:\s" pio-${{ matrix.environment }}.log | while read -r line; do echo "- ${line}"; done
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # The version name each build gets, and the rules that decide which release
+  # "Check for updates" offers a device with that name.
+  version-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The native test suite's CMake files list sources in freeink-sdk.
+          submodules: recursive
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install native test dependencies
+        run: sudo apt-get update && sudo apt-get install -y libexpat1-dev zlib1g-dev
+
+      - name: Version names (scripts/git_branch.py)
+        run: python3 -m unittest scripts/test_build_identity.py
+
+      - name: Update version rules (test/ota_version)
+        run: |
+          set -euo pipefail
+          cmake -S test -B build/tests
+          cmake --build build/tests --target OtaVersionTest -j 4
+          ctest --test-dir build/tests -R '^OtaVersion\.' --output-on-failure --no-tests=error
+
   # This job is used as the PR required actions check, allows for changes to other steps in the future without breaking
   # PR requirements.
   test-status:
@@ -129,6 +156,7 @@ jobs:
       - build
       - clang-format
       - cppcheck
+      - version-tests
     if: always()
     runs-on: ubuntu-latest
     steps:
