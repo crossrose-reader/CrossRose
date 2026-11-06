@@ -77,4 +77,24 @@ int compare(const char* latest, const char* current) {
   return 0;
 }
 
+bool isFirmwareAssetFor(const char* assetName, const char* deviceType) {
+  if (assetName == nullptr || deviceType == nullptr || deviceType[0] == '\0') return false;
+
+  constexpr char prefix[] = "firmware-";
+  constexpr size_t prefixLength = sizeof(prefix) - 1;
+  constexpr char suffix[] = ".bin";
+  constexpr size_t suffixLength = sizeof(suffix) - 1;
+
+  if (strncmp(assetName, prefix, prefixLength) != 0) return false;
+  const char* rest = assetName + prefixLength;
+  const size_t typeLength = strlen(deviceType);
+  if (strncmp(rest, deviceType, typeLength) != 0) return false;
+  rest += typeLength;
+
+  if (strcmp(rest, suffix) == 0) return true;
+  if (rest[0] != '-' || rest[1] != 'v' || !isDigit(rest[2])) return false;
+  const size_t restLength = strlen(rest);
+  return restLength > suffixLength && strcmp(rest + restLength - suffixLength, suffix) == 0;
+}
+
 }  // namespace ota_version
