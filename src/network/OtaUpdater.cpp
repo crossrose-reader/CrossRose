@@ -36,25 +36,17 @@ namespace {
 
 constexpr char latestReleaseUrl[] = CROSSINK_OTA_RELEASE_URL;
 
-#ifdef CROSSINK_FIRMWARE_DEVICE_TYPE
-constexpr char firmwareAssetStem[] = "firmware-" CROSSINK_FIRMWARE_DEVICE_TYPE;
-constexpr char firmwareAssetName[] = "firmware-" CROSSINK_FIRMWARE_DEVICE_TYPE ".bin";
-#else
-constexpr char firmwareAssetStem[] = "firmware";
-constexpr char firmwareAssetName[] = "firmware.bin";
+// Every firmware env in platformio.ini sets this. Release files are named
+// firmware-<type>-v<version>.bin (see .github/workflows/build-firmware.yml).
+#ifndef CROSSINK_FIRMWARE_DEVICE_TYPE
+#error "OtaUpdater: CROSSINK_FIRMWARE_DEVICE_TYPE is not set for this env"
 #endif
+constexpr char firmwareDeviceType[] = CROSSINK_FIRMWARE_DEVICE_TYPE;
 
-constexpr char binSuffix[] = ".bin";
 constexpr size_t OTA_PROGRESS_UPDATE_BYTES = 64 * 1024;
 constexpr size_t OTA_HASH_CHUNK = 4096;
 constexpr char OTA_STAGE_DIR[] = "/.crosspoint";
 constexpr char OTA_STAGE_PATH[] = "/.crosspoint/ota-update.bin";
-
-bool startsWith(const char* value, const char* prefix) {
-  if (value == nullptr || prefix == nullptr) return false;
-  const size_t prefixLength = strlen(prefix);
-  return strncmp(value, prefix, prefixLength) == 0;
-}
 
 char lowerHex(const uint8_t value) {
   return value < 10 ? static_cast<char>('0' + value) : static_cast<char>('a' + value - 10);
@@ -85,20 +77,8 @@ bool sha256Matches(const uint8_t digest[32], const char* expectedHex) {
 
 bool isHttpUrl(const std::string& url) { return url.rfind("http://", 0) == 0; }
 
-bool endsWith(const char* value, const char* suffix) {
-  if (value == nullptr || suffix == nullptr) return false;
-  const size_t valueLength = strlen(value);
-  const size_t suffixLength = strlen(suffix);
-  if (suffixLength > valueLength) return false;
-  return strcmp(value + valueLength - suffixLength, suffix) == 0;
-}
-
 bool isMatchingFirmwareAssetName(const char* assetName) {
-  if (assetName == nullptr) return false;
-  if (strcmp(assetName, firmwareAssetName) == 0) return true;
-  if (!startsWith(assetName, firmwareAssetStem)) return false;
-  if (assetName[strlen(firmwareAssetStem)] != '-') return false;
-  return endsWith(assetName, binSuffix);
+  return ota_version::isFirmwareAssetFor(assetName, firmwareDeviceType);
 }
 
 /*
@@ -305,7 +285,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   latestVersion = releaseParser.getTagName();
 
   if (!releaseParser.foundFirmware()) {
-    LOG_ERR("OTA", "No matching %s asset found for release %s", firmwareAssetStem, latestVersion.c_str());
+    LOG_ERR("OTA", "No firmware-%s asset found for release %s", firmwareDeviceType, latestVersion.c_str());
     return NO_UPDATE;
   }
 
@@ -360,7 +340,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
   processedSize = 0;
 
   const esp_partition_t* updatePartition = esp_ota_get_next_update_partition(nullptr);
-  if (updatePartition == nullptr) {
+  if (updatePartition == nullptr || updatePartition == esp_ota_get_running_partition()) {
     LOG_ERR("OTA", "No OTA update partition found");
     return INTERNAL_UPDATE_ERROR;
   }
@@ -391,19 +371,8 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
   }
   Storage.remove(OTA_STAGE_PATH);
 
-  // Remove a previous partial download before measuring free space. Some SD
-  // transports cannot report capacity; in that case let the download surface
-  // its actual I/O failure instead of reporting a false card-full error.
-  if (otaSize > 0) {
-    const uint64_t totalBytes = Storage.totalBytes();
-    const uint64_t usedBytes = Storage.usedBytes();
-    const uint64_t freeBytes = totalBytes > usedBytes ? totalBytes - usedBytes : 0;
-    if (totalBytes > 0 && freeBytes < otaSize) {
-      LOG_ERR("OTA", "Insufficient SD space for OTA: free=%llu required=%zu",
-              static_cast<unsigned long long>(freeBytes), otaSize);
-      return SD_CARD_FULL_ERROR;
-    }
-  }
+  // Avoid a whole-card free-space scan on the loop task. The staging download
+  // checks writes; only a complete, validated image can reach the flash step.
 
   HttpDownloader::DownloadOptions downloadOptions;
   downloadOptions.shouldCancel = isCancellationRequested;

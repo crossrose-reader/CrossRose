@@ -28,4 +28,11 @@ ParsedVersion parse(const char* version);
 // own pre-releases: "v0.1.0" is newer than "0.1.0-nightly.20261201".
 int compare(const char* latest, const char* current);
 
+// True when `assetName` is this device's firmware file on a release:
+// "firmware-<deviceType>.bin" or "firmware-<deviceType>-v<version>.bin"
+// (the names build-firmware.yml uploads). Requiring "-v" and a digit right
+// after the device type keeps a device from taking another device's file
+// when one type is the start of another, like "x4" and "x4-pro".
+bool isFirmwareAssetFor(const char* assetName, const char* deviceType);
+
 }  // namespace ota_version

@@ -20,6 +20,7 @@ body:
         - X4 Pro
         - X4 Classic
         - Seeed Sticky
+        - Boox Picco
     validations:
       required: true
 

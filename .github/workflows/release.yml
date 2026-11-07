@@ -10,7 +10,8 @@
 #   1. checks the tag (format, platformio.ini version, commit is on main, or
 #      on release/MAJOR.MINOR for a vMAJOR.MINOR.x tag),
 #   2. builds the firmware for every device,
-#   3. makes a DRAFT release with the .bin files and the CHANGELOG notes.
+#   3. packages the SD language zip,
+#   4. makes a DRAFT release with the .bin files, the zip and the CHANGELOG notes.
 #
 # A draft is private. Read it on the Releases page, then press "Publish release".
 # Only after you publish do devices see it in "Check for updates".
@@ -110,8 +111,41 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
       artifact-prefix: release-firmware
 
+  languages:
+    # The firmware builds in English only. Other menu languages and the
+    # hyphenation packs install from this zip (docs/languages.md), as on
+    # CrossInk releases. Packaging runs repository Python, so it happens
+    # here, read-only, and the publish job only uploads the zip.
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Package the SD language files
+        run: |
+          set -euo pipefail
+          python3 scripts/package_languages.py \
+            --version "$VERSION" \
+            --source-commit "$SHA" --status release-build \
+            --output "release-languages/crossink-languages-$VERSION.zip"
+
+      - name: Upload the language zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-languages
+          path: release-languages/crossink-languages-${{ needs.prepare.outputs.version }}.zip
+          if-no-files-found: error
+
   publish:
-    needs: [prepare, build]
+    needs: [prepare, build, languages]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -131,6 +165,16 @@ jobs:
           pattern: release-firmware-*
           merge-multiple: true
           path: release-firmware
+
+      - name: Download the language zip
+        uses: actions/download-artifact@v7
+        with:
+          name: release-languages
+          path: release-firmware
+
+      - name: Check the language zip is there
+        # The draft release must not be made without it.
+        run: test -f "release-firmware/crossink-languages-$VERSION.zip"
 
       - name: Copy this version's notes from CHANGELOG.md
         run: |
@@ -174,4 +218,6 @@ jobs:
           # you publish it in the web page, the "Set as the latest release"
           # checkbox decides. That is why the notes above carry a warning too.
           make_latest: ${{ env.MAKE_LATEST }}
-          files: release-firmware/*.bin
+          files: |
+            release-firmware/*.bin
+            release-firmware/crossink-languages-*.zip
