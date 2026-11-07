@@ -174,6 +174,15 @@ std::string formatCompactDuration(const uint32_t seconds) {
   return buf;
 }
 
+#if CROSSINK_APP_CAP_TOUCH
+// Shared by the settings row and the picker. Picker slider drags are not snapped to the step, so
+// the picker label shows the value that will actually be saved.
+void formatHoldToSelectDelayValue(const int value, char* const buf, const size_t len) {
+  const uint16_t ms = CrossPointSettings::normalizeHoldToSelectDelayMs(static_cast<uint32_t>(std::max(value, 0)));
+  snprintf(buf, len, tr(STR_MILLISECONDS_VALUE_FORMAT), static_cast<unsigned int>(ms));
+}
+#endif
+
 void drawSystemVersionFooter(const GfxRenderer& renderer, const ThemeMetrics& metrics) {
   const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
   const std::string label = AppVersion::versionLabel();
@@ -221,6 +230,13 @@ std::string formatSettingValue(const SettingInfo& setting) {
     formatFrontlightScheduleTime(timeOfDay, valueBuffer, sizeof(valueBuffer));
     return valueBuffer;
   }
+#if CROSSINK_APP_CAP_TOUCH
+  if (setting.value16Ptr == &CrossPointSettings::holdToSelectDelayMs) {
+    char valueBuffer[16];
+    formatHoldToSelectDelayValue(SETTINGS.holdToSelectDelayMs, valueBuffer, sizeof(valueBuffer));
+    return valueBuffer;
+  }
+#endif
   if (setting.nameId == StrId::STR_TIME_TO_SLEEP) {
     if (SETTINGS.sleepTimeoutMinutes >= CrossPointSettings::SLEEP_TIMEOUT_NEVER_MINUTES) {
       return tr(STR_NEVER);
@@ -247,6 +263,8 @@ std::string formatSettingValue(const SettingInfo& setting) {
     CrossPointSettings::formatCharacterSpacing(SETTINGS.characterSpacing, value, sizeof(value));
     return value;
   }
+  // A 16-bit entry has no 8-bit member pointer; it needs its own branch above.
+  if (!setting.valuePtr) return "";
   return std::to_string(SETTINGS.*(setting.valuePtr));
 }
 
@@ -1445,6 +1463,12 @@ void SettingsActivity::toggleCurrentSetting() {
     openIdleTimeThresholdPicker();
     return;
   }
+#if CROSSINK_APP_CAP_TOUCH
+  if (setting.value16Ptr == &CrossPointSettings::holdToSelectDelayMs) {
+    openHoldToSelectDelayPicker();
+    return;
+  }
+#endif
   if (setting.valuePtr == &CrossPointSettings::clockUtcOffsetQ) {
     startActivityForResult(std::make_unique<ClockOffsetActivity>(renderer, mappedInput), [this](const ActivityResult&) {
       SETTINGS.saveToFile();
@@ -1804,6 +1828,29 @@ void SettingsActivity::openIdleTimeThresholdPicker() {
       });
 }
 
+#if CROSSINK_APP_CAP_TOUCH
+void SettingsActivity::openHoldToSelectDelayPicker() {
+  startActivityForResult(
+      std::make_unique<IntervalSelectionActivity>(
+          renderer, mappedInput, "HoldToSelectDelayInterval", StrId::STR_HOLD_TO_SELECT_DELAY,
+          SETTINGS.holdToSelectDelayMs, CrossPointSettings::MIN_HOLD_TO_SELECT_DELAY_MS,
+          CrossPointSettings::MAX_HOLD_TO_SELECT_DELAY_MS, CrossPointSettings::HOLD_TO_SELECT_DELAY_STEP_MS,
+          /*largeStep=*/2 * CrossPointSettings::HOLD_TO_SELECT_DELAY_STEP_MS, StrId::STR_MILLISECONDS_VALUE_FORMAT,
+          /*readerActivity=*/false, /*allowPowerAsConfirm=*/false, /*ignoreInitialConfirmRelease=*/false,
+          /*showPercentValue=*/false, StrId::STR_NONE_OPT, /*overrideDisabledReaderTouchscreen=*/false,
+          /*showTouchHeaderBackButton=*/true, &formatHoldToSelectDelayValue,
+          /*tapStep=*/CrossPointSettings::HOLD_TO_SELECT_DELAY_STEP_MS, /*useReaderSlider=*/true),
+      [this](const ActivityResult& result) {
+        if (!result.isCancelled) {
+          SETTINGS.holdToSelectDelayMs =
+              CrossPointSettings::normalizeHoldToSelectDelayMs(std::get<IntervalResult>(result.data).value);
+          SETTINGS.saveToFile();
+        }
+        requestUpdate();
+      });
+}
+#endif
+
 std::string SettingsActivity::settingValueText(const SettingInfo& setting) {
   if (isPageGestureSettingDisabled(setting)) return tr(STR_DISABLED);
   if (setting.action == SettingAction::Plugins) return SETTINGS.pluginsEnabled ? tr(STR_ENABLED) : tr(STR_DISABLED);
@@ -2099,7 +2146,10 @@ void SettingsActivity::render(RenderLock&&) {
                       (*currentSettings)[selectedSettingIndex - 1].value16Ptr ==
                           &CrossPointSettings::frontlightScheduleStart ||
                       (*currentSettings)[selectedSettingIndex - 1].value16Ptr ==
-                          &CrossPointSettings::frontlightScheduleEnd)
+                          &CrossPointSettings::frontlightScheduleEnd ||
+                      // Constant-false on button-only builds, which have no Hold to Select Delay row.
+                      (CROSSINK_APP_CAP_TOUCH && (*currentSettings)[selectedSettingIndex - 1].value16Ptr ==
+                                                     &CrossPointSettings::holdToSelectDelayMs))
                  ? tr(STR_SELECT)
                  : tr(STR_TOGGLE));
 

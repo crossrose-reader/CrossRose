@@ -5,12 +5,14 @@
 - Includes CrossInk 2.0.0: everything in its [v2.0.0] notes below, including Boox Picco support. The Picco file is `firmware-picco-v<version>.bin`.
 - On the Boox Picco, Check for Updates and SD Card Firmware Update are not shown, as in CrossInk: the Picco has one app slot, and an update from the reader would overwrite the running firmware. Install new versions over USB.
 - Stable and nightly releases include `crossink-languages-<version>.zip`. Like CrossInk 2.0, the firmware has English built in; the zip holds the other menu languages and the hyphenation packs to copy to the SD card (see [Languages](docs/languages.md)).
+- Set how long to touch and hold a word before word selection opens (500–1000 ms) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 
 ### Changed
 
 - First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 - Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
+- On touchscreen devices, touching and holding a margin, a blank line or an image no longer redraws the page before the release turns it.
 
 ### Fixed
 

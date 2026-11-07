@@ -90,7 +90,6 @@
 #include "util/ScreenshotUtil.h"
 
 namespace {
-constexpr unsigned long TOUCH_DICTIONARY_LOOKUP_HOLD_MS = 1000;
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
 constexpr unsigned long longPressMenuMs = 600;
 constexpr uint16_t DEFAULT_AUTO_PAGE_TURN_INTERVAL_S = 30;
@@ -3836,11 +3835,18 @@ bool EpubReaderActivity::handleTouchDictionaryLookup() {
     touchDictionaryLookupHandled = false;
     return false;
   }
-  if (touchDictionaryLookupHandled || heldMs < TOUCH_DICTIONARY_LOOKUP_HOLD_MS) {
+  if (touchDictionaryLookupHandled || !ReaderUtils::touchHoldOpensWordSelection(heldMs)) {
     return false;
   }
 
   touchDictionaryLookupHandled = true;
+#if CROSSINK_APP_CAP_TOUCH
+  // A hold on a margin, a blank line or an image has no word to select. Skip the page reload,
+  // word-selection allocation and redraw, so the release can still turn the page promptly.
+  if (!currentPageTextTouchBands.mayContainWord(touchX, touchY)) {
+    return false;
+  }
+#endif
   openWordSelect(/*framebufferContainsPage=*/true, touchX, touchY, /*autoLookupInitialWord=*/true);
   return true;
 }
@@ -7104,6 +7110,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       currentPageFootnotes.clear();
 #if CROSSINK_APP_CAP_TOUCH
       currentPageFootnoteTouchTargets.fill({});
+      currentPageTextTouchBands.clear();
 #endif
       renderer.clearScreen(ReaderUtils::readerBackgroundColor());
       openingFeedback.finish();
@@ -7658,6 +7665,8 @@ bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
 
 #if CROSSINK_APP_CAP_TOUCH
   buildFootnoteTouchTargets(*page, fontId, orientedMarginTop, orientedMarginLeft);
+  // Glyph metrics are warm after the scan pass above, so measuring two words per line is cheap.
+  currentPageTextTouchBands.build(*page, renderer, fontId, orientedMarginTop, orientedMarginLeft);
 #endif
 
   const bool pageHasImages = page->hasImages();

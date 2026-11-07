@@ -626,12 +626,12 @@ inline SettingInfo buildSideButtonActionSetting(const StrId nameId, uint8_t Cros
 // #1636) so the per-entry SettingInfo cost is paid once. Read-only consumers
 // can use it directly; mutable device UI lists use getSettingsList(), which
 // returns an owned copy and can add SD-card font and dictionary options.
-// 110 common entries, plus Publisher Fonts on scalable-font builds and four
-// edge gestures on touch devices; getBaseSettingsCapacity() adds the three persisted IMU entries.
+// 110 common entries, plus Publisher Fonts on scalable-font builds, and four edge gestures and
+// Hold to Select Delay on touch devices; getBaseSettingsCapacity() adds the three persisted IMU entries.
 #if CROSSINK_SCALABLE_FONTS
-inline constexpr size_t BASE_SETTINGS_CAPACITY = 111 + (CROSSINK_APP_CAP_TOUCH ? 4 : 0);
+inline constexpr size_t BASE_SETTINGS_CAPACITY = 111 + (CROSSINK_APP_CAP_TOUCH ? 5 : 0);
 #else
-inline constexpr size_t BASE_SETTINGS_CAPACITY = 110 + (CROSSINK_APP_CAP_TOUCH ? 4 : 0);
+inline constexpr size_t BASE_SETTINGS_CAPACITY = 110 + (CROSSINK_APP_CAP_TOUCH ? 5 : 0);
 #endif
 
 #if FREEINK_DEVICE_PICCO
@@ -645,6 +645,29 @@ inline size_t getBaseSettingsCapacity() {
 }
 
 const std::vector<SettingInfo>& getBaseSettingsList();
+
+// Clamps a 16-bit VALUE setting to its range and rounds it to the nearest step counted from the
+// minimum. Settings load and the web settings POST both use it, so each stores what the device shows.
+// Out of line (SettingsList.cpp) so the C3 image carries one copy instead of one per caller.
+uint16_t snappedValue16(const SettingInfo& setting, uint32_t value);
+
+// Settings that only make sense with a touchscreen. Both the device settings list and the web
+// settings page hide them when the device has no touch input. Out of line for the same reason.
+bool isTouchOnlySetting(StrId nameId);
+
+// Removes every isTouchOnlySetting() entry. Out of line so the remove_if loop is not inlined into
+// each getSettingsList() caller.
+void eraseTouchOnlySettings(std::vector<SettingInfo>& settings);
+
+// printf-style format (one %u) for a VALUE setting's unit, or STR_NONE_OPT for a bare number.
+inline StrId settingValueFormatId(const SettingInfo& setting) {
+#if CROSSINK_APP_CAP_TOUCH
+  if (setting.value16Ptr == &CrossPointSettings::holdToSelectDelayMs) return StrId::STR_MILLISECONDS_VALUE_FORMAT;
+#else
+  (void)setting;
+#endif
+  return StrId::STR_NONE_OPT;
+}
 
 inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* registry = nullptr,
                                                 const DictionaryRegistry* dictRegistry = nullptr) {
@@ -689,22 +712,7 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         v.end());
   }
   const bool hasTouch = gpio.hasTouch();
-  if (!hasTouch) {
-    v.erase(std::remove_if(v.begin(), v.end(),
-                           [](const SettingInfo& s) {
-                             return s.nameId == StrId::STR_DISABLE_TOUCHSCREEN || s.nameId == StrId::STR_NEXT_PAGE ||
-                                    s.nameId == StrId::STR_PREV_PAGE || s.nameId == StrId::STR_TAP_HIDE_STATUS_BAR ||
-                                    s.nameId == StrId::STR_PINCH_FONT_RESIZE ||
-                                    s.nameId == StrId::STR_TWO_FINGER_ROTATION ||
-                                    s.nameId == StrId::STR_TWO_FINGER_SWIPE_UP ||
-                                    s.nameId == StrId::STR_TWO_FINGER_SWIPE_DOWN ||
-                                    s.nameId == StrId::STR_TWO_FINGER_SWIPE_LEFT ||
-                                    s.nameId == StrId::STR_TWO_FINGER_SWIPE_RIGHT ||
-                                    s.nameId == StrId::STR_LEFT_EDGE_UP || s.nameId == StrId::STR_LEFT_EDGE_DOWN ||
-                                    s.nameId == StrId::STR_RIGHT_EDGE_UP || s.nameId == StrId::STR_RIGHT_EDGE_DOWN;
-                           }),
-            v.end());
-  }
+  if (!hasTouch) eraseTouchOnlySettings(v);
   if (!gpio.supportsMultiTouch()) {
     v.erase(std::remove_if(v.begin(), v.end(),
                            [](const SettingInfo& s) {
@@ -847,6 +855,7 @@ inline std::vector<SettingInfo> buildReaderSettingsParentList(const std::vector<
   addSettingByName(readerSettings, allSettings, StrId::STR_FOCUS_READING);
   addSettingByName(readerSettings, allSettings, StrId::STR_GUIDE_READING);
   addSettingByName(readerSettings, allSettings, StrId::STR_DICTIONARY);
+  addSettingByName(readerSettings, allSettings, StrId::STR_HOLD_TO_SELECT_DELAY);
   addSettingByName(readerSettings, allSettings, StrId::STR_INDEXING_METHOD);
   return readerSettings;
 }
