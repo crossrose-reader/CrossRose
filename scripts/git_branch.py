@@ -180,6 +180,10 @@ def inject_version(env):
         if os.environ.get('CROSSINK_RELEASE_VERSION')
         else get_crossink_version(project_dir)
     )
+    # A pre-release such as a nightly (0.1.0-nightly.20261201) is a build of
+    # the version in platformio.ini, and reports that, as CrossInk's RCs do.
+    if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-.+", canonical_version):
+        canonical_version = get_crossink_version(project_dir)
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", canonical_version):
         canonical_version = "unknown"
     sdk_sha = run_git_value(os.path.join(project_dir, "freeink-sdk"), ["rev-parse", "HEAD"], "SDK SHA")

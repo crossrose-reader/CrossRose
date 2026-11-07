@@ -69,7 +69,12 @@ jobs:
         run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
 
       - name: Run cppcheck
-        run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
+        # Without -e, pio check covers default_envs only. The Boox Picco is
+        # not one of them, so check it too.
+        run: |
+          set -euo pipefail
+          pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
+          pio check -e picco --fail-on-defect low --fail-on-defect medium --fail-on-defect high
 
   build:
     # Firmware artifacts are validated on pull requests; release builds stay
@@ -121,8 +126,9 @@ jobs:
             grep -E "RAM:\s|Flash:\s" pio-${{ matrix.environment }}.log | while read -r line; do echo "- ${line}"; done
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # The version name each build gets, and the rules that decide which release
-  # "Check for updates" offers a device with that name.
+  # The version name each build gets, the rules that decide which release
+  # "Check for updates" offers a device with that name, and the language zip
+  # that stable and nightly releases carry.
   version-tests:
     runs-on: ubuntu-latest
     steps:
@@ -140,6 +146,12 @@ jobs:
 
       - name: Version names (scripts/git_branch.py)
         run: python3 -m unittest scripts/test_build_identity.py
+
+      - name: Language zip on releases (release.yml, nightly.yml, scripts/package_languages.py)
+        run: |
+          set -euo pipefail
+          python3 test/scripts/test_language_asset_publication.py
+          python3 test/language_cache/language_template_test.py "$GITHUB_WORKSPACE"
 
       - name: Update version rules and update guards (test/ota_version, test/ota_staging_guard)
         run: |

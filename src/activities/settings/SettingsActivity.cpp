@@ -17,6 +17,7 @@
 #include "AboutActivity.h"
 #include "AppCapabilities.h"
 #include "AppVersion.h"
+#include "AssetDownloadConfig.h"
 #include "BackupStatsActivity.h"
 #include "ButtonRemapActivity.h"
 #include "ClearCacheActivity.h"
@@ -836,6 +837,12 @@ int SettingsActivity::languageSourceIndex(const char* code) const {
   return -1;
 }
 void SettingsActivity::openLanguageDownloads() {
+  if (!ASSET_DOWNLOADS_CONFIGURED) {
+    // No download host in this build. What's New's Install Languages lands
+    // here; show the SD Language list instead of a list of failing downloads.
+    openLanguagePicker();
+    return;
+  }
   RenderLock lock(*this);
   optionPopup.clear();
   languageCatalog.reset();

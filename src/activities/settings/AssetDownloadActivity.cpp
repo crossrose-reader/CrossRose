@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "AssetDownloadConfig.h"
 #include "CrossPointState.h"
 #include "HyphenationPackStore.h"
 #include "SdCardFontSystem.h"
@@ -17,18 +18,6 @@
 #include "components/TouchHeaderBackButton.h"
 #include "network/HttpDownloader.h"
 #include "util/StringUtils.h"
-
-// Deployment configuration is deliberately empty until official endpoints have
-// been approved and qualified. Catalog data cannot select a host or redirect.
-#ifndef ASSET_DOWNLOAD_BASE_URL
-#define ASSET_DOWNLOAD_BASE_URL ""
-#endif
-#ifndef ASSET_CATALOG_BASE_URL
-#define ASSET_CATALOG_BASE_URL ASSET_DOWNLOAD_BASE_URL
-#endif
-#ifndef ASSET_DOWNLOAD_REDIRECT_BASE_URL
-#define ASSET_DOWNLOAD_REDIRECT_BASE_URL ""
-#endif
 
 using AssetDownloadService::Result;
 using AssetDownloadService::Status;

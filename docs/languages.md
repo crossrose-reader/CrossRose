@@ -14,6 +14,12 @@ book's language, independently of your menu language.
 
 ## Download a language on the reader
 
+CrossRose has no download server yet. Its releases do not show **Download
+Languages**, and **What's New** offers no language **Update**; its **Install
+Languages** opens the **Language** list instead. Use
+[Install a language from SD](#install-a-language-from-sd). The steps below are
+for builds made with a download server.
+
 1. Open **Settings > System > Device > Download Languages**.
 2. Select a language marked **Install**.
 3. Follow the Wi-Fi screen to download and activate it. The reader restarts to
@@ -48,8 +54,9 @@ source folders does not require clearing book caches or reinstalling packs.
 
 ## Install a language from SD
 
-1. Download `crossink-languages-<version>.zip` for your firmware from the
-   [releases page](https://github.com/uxjulia/CrossInk/releases).
+1. Download `crossink-languages-<version>.zip` from the same
+   [CrossRose release](https://github.com/crossrose-reader/CrossRose/releases)
+   as your firmware (the Nightly release for a nightly build).
 2. Unzip it and copy the `.crossink/languages` folder to the root of your SD
    card. You only need the language files you want. Turn on **Show hidden files**
    in your file manager if you cannot see the `.crossink` folder.
