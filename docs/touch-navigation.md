@@ -5,7 +5,7 @@ nav_order: 2
 
 # Touch Navigation
 
-This page covers how to get around CrossInk with your fingers on touchscreen
+This page covers how to get around CrossRose with your fingers on touchscreen
 devices (Sticky and X4 Pro). For turning pages and other gestures while reading,
 see [Controls](./controls.md) and
 [Touch Reader Controls](./user-guide.md#touch-reader-controls).

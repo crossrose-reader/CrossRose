@@ -3,11 +3,11 @@ title: Home
 nav_order: 1
 ---
 
-# CrossInk
+# CrossRose
 
-Welcome to CrossInk, a personal fork of CrossPoint Reader.
+Welcome to CrossRose, a fork of [CrossInk](https://github.com/uxjulia/CrossInk), which is itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader).
 
-[View on GitHub](https://github.com/uxjulia/CrossInk)
+[View on GitHub](https://github.com/crossrose-reader/CrossRose)
 
 ## User Docs
 

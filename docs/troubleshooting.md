@@ -23,7 +23,7 @@ This document shows common issues and possible solutions while using the device 
 
 1. Verify both devices are on the correct network (it must be a 2.4 GHz network; 5 GHz is not supported)
    - Check your computer/phone Wi-Fi settings
-   - In **Join a Network** mode, your computer/phone and CrossInk must be on the same Wi-Fi network
+   - In **Join a Network** mode, your computer/phone and CrossRose must be on the same Wi-Fi network
    - In **Create Hotspot** mode, your computer/phone must be connected to the `CrossPoint-Reader` hotspot
 2. Double-check the IP address
    - Make sure you typed it correctly
@@ -74,7 +74,7 @@ The page shows read-only details such as the device model, firmware version, scr
 
 ### Sharing Settings for Support
 
-When you report a problem, it helps to share your settings. CrossInk keeps global preferences (reader defaults, controls, status bars, library options, and so on) in `/.crosspoint/crossink-settings.json` on the SD card. This file does not include hardware details or per-book settings.
+When you report a problem, it helps to share your settings. CrossRose keeps global preferences (reader defaults, controls, status bars, library options, and so on) in `/.crosspoint/crossink-settings.json` on the SD card. This file does not include hardware details or per-book settings.
 
 Some values, such as your device name, font names, and transfer folder paths, could reveal private information. Look through the file and remove anything you do not want to share.
 

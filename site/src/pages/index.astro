@@ -1,6 +1,6 @@
 ---
 import SiteLayout from '../layouts/SiteLayout.astro';
-import { getDocs } from '../lib/docs';
+import { getDocs, withBase } from '../lib/docs';
 
 const docs = await getDocs();
 const featuredDocs = docs.filter((doc) =>
@@ -9,25 +9,25 @@ const featuredDocs = docs.filter((doc) =>
 ---
 
 <SiteLayout
-  title="CrossInk"
+  title="CrossRose"
   description="Modern open-source e-reader firmware for Xteink X4 and X3 devices."
   pageClass="home"
 >
   <section slot="hero" class="hero">
     <div class="hero-copy">
-      <p class="eyebrow">A personal fork of <a href="https://crosspointreader.com/">CrossPoint</a></p>
-      <h1>Cross<span class="crossink-serif">I</span>nk</h1>
+      <p class="eyebrow">A fork of <a href="https://github.com/uxjulia/CrossInk">CrossInk</a> and <a href="https://crosspointreader.com/">CrossPoint</a></p>
+      <h1>Cross<span class="crossink-serif">R</span>ose</h1>
       <p class="hero-text">
         Minimal reading stats and improved UX.
       </p>
       <div class="hero-actions">
-        <a class="button primary" href="/installation.html">Installation Instructions</a>
-        <a class="button" href="/reader-features.html">Explore features</a>
+        <a class="button primary" href={withBase("/installation.html")}>Installation Instructions</a>
+        <a class="button" href={withBase("/reader-features.html")}>Explore features</a>
       </div>
     </div>
     <img
-      src="/images/bitter-small-15-margin.jpg"
-      alt="CrossInk on an X4 using 10pt Bitter font"
+      src={withBase("/images/bitter-small-15-margin.jpg")}
+      alt="CrossRose on an X4 using 10pt Bitter font"
       class="hero-image"
       loading="eager"
     />

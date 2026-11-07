@@ -145,7 +145,7 @@ and move them together in that direction. **Not Set** leaves a direction
 unused (this is the default for all four).
 
 Each action can be assigned to only one direction. If you give an action to a
-new direction, CrossInk clears it from the old one.
+new direction, CrossRose clears it from the old one.
 
 Available actions depend on the device and the book:
 
@@ -327,7 +327,7 @@ pause while Quick Lock is active.
 
 When a shortcut is mapped to **Footnotes**, it opens the page-reference selector
 (or a list fallback) while reading. If the current page has only one footnote,
-CrossInk opens that referenced page directly.
+CrossRose opens that referenced page directly.
 
 The **Quick-return from Footnotes** setting controls whether the Power button
 acts like Back after opening a footnote page. It appears under **Settings >

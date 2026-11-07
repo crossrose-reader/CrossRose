@@ -15,6 +15,7 @@ import os
 import re
 import gzip
 import hashlib
+import importlib.util
 import shutil
 import subprocess
 import tempfile
@@ -29,14 +30,14 @@ WEB = os.path.join(ROOT, "web")
 OUT = os.path.join(ROOT, "src", "network", "html")
 JS_OUT = os.path.join(OUT, "js")
 
-# slug -> (generated identifier, <title>, active nav, extra <head> markup)
-PAGES = {
-    "runner": ("RunnerPageHtml", "Plugins - CrossInk", "settings", '<script src="/plugin-host.js"></script>'),
-    "home":     ("HomePageHtml",     "CrossInk",                   "home",     ""),
-    "files":    ("FilesPageHtml",    "Files - CrossInk",           "files",    '  <script src="/js/jszip.min.js"></script><script src="/plugin-host.js"></script>'),
-    "settings": ("SettingsPageHtml", "Settings - CrossInk Reader", "settings", '<script src="/plugin-host.js"></script>'),
-    "fonts":    ("FontsPageHtml",    "Fonts - CrossInk",           "fonts",    ""),
-}
+# Load the shared page table by path: PlatformIO runs this pre-script without
+# scripts/ on sys.path, and adding it there would leak into later build scripts.
+_spec = importlib.util.spec_from_file_location("web_pages", os.path.join(ROOT, "scripts", "web_pages.py"))
+web_pages = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(web_pages)
+
+PRODUCT = web_pages.product_name(ROOT)
+PAGES = web_pages.pages(PRODUCT)
 
 PRESERVE_TAGS = "pre|code|textarea|script|style"
 
@@ -137,7 +138,7 @@ for slug, (ident, title, active, head_extra) in PAGES.items():
     page_js = (minified.get(js_path) or read(js_path)).strip()
     script = f"<script>\n{page_js}\n</script>" if page_js else ""
     values = {
-        "title": title, "v": v, "head_extra": head_extra,
+        "title": title, "product": PRODUCT, "v": v, "head_extra": head_extra,
         "styles": page_css, "body": page_html, "script": script,
         "cls_home": "", "cls_files": "", "cls_settings": "", "cls_fonts": "",
     }

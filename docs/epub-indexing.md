@@ -11,8 +11,8 @@ switch that book to **Incremental**.
 
 ## What is indexing?
 
-Before CrossInk can show a chapter, it has to work out how the text fits onto
-pages for your font, size, and margins. This is called indexing. CrossInk saves
+Before CrossRose can show a chapter, it has to work out how the text fits onto
+pages for your font, size, and margins. This is called indexing. CrossRose saves
 the result on the SD card (in the book's cache), so a chapter only has to be
 indexed once. Changing the font or spacing means it has to be done again.
 
@@ -32,7 +32,7 @@ indexed once. Changing the font or spacing means it has to be done again.
 
 With **Incremental**, you may occasionally see **Indexing** pop up if you jump
 far ahead, follow a link deep into a chapter, or turn pages faster than
-CrossInk can prepare them. That is normal. It is just catching up.
+CrossRose can prepare them. That is normal. It is just catching up.
 
 ## How to change it
 
@@ -44,12 +44,12 @@ For one book only: open the Reader Menu, choose the **Settings** tab, then
 your other books.
 
 Changing the method does not change the screen you are looking at. It applies
-the next time CrossInk needs to index a chapter. It also never changes the EPUB
+the next time CrossRose needs to index a chapter. It also never changes the EPUB
 file itself, your reading progress, bookmarks, clippings, or reading stats.
 
 ## If a book is still slow or will not open
 
 Indexing Method changes when the work happens. It does not make the work
-smaller. If a difficult book is still slow, or CrossInk runs out of memory on
+smaller. If a difficult book is still slow, or CrossRose runs out of memory on
 it, try a lighter [EPUB Render Mode](./epub-render-modes.md), or
 [optimize](https://inky.crossink.dev) the EPUB before copying it to the device.

@@ -5,9 +5,9 @@ nav_order: 7
 
 # Reading Stats Sync
 
-CrossInk can share reading progress, reading stats, and clippings through a
+CrossRose can share reading progress, reading stats, and clippings through a
 sync server. You can also share all-time reading totals directly between two
-nearby CrossInk readers, without an account.
+nearby CrossRose or CrossInk readers, without an account.
 
 ## Server Sync Settings
 
@@ -54,7 +54,7 @@ may have its own background behavior; see [Plugins](./sd-plugins.md).
 ## Sync Books
 
 Choose **File Transfer > Sync Server > Sync Books**, confirm, and connect to
-Wi-Fi if asked. CrossInk checks the SD card directly, so you do not need to
+Wi-Fi if asked. CrossRose checks the SD card directly, so you do not need to
 refresh Library first.
 
 The first sync checks every book. Later syncs can be quicker on supported
@@ -69,7 +69,7 @@ or checks again as needed. Retrying does not add the same reading time twice.
 After a full sync, you may see **Checking for updates...** followed by
 **Uploading changes...**. Unchanged books do not need to be sent again.
 
-When another device has a new position, CrossInk can remember it for later. If
+When another device has a new position, CrossRose can remember it for later. If
 you open that book before resolving it, you may be asked **Continue from 45%
 (Phone)?** Choose **Continue** to use that position, or **Stay here** to keep
 this reader's place and send it on the next sync.
@@ -99,7 +99,7 @@ confirmation and makes the next sync check every book again. Existing server
 records remain; you may need to merge duplicates in the server's web app.
 
 Use a trusted sync service and an HTTPS address. Plain HTTP does not protect
-your login or reading data in transit. CrossInk does not verify the server's
+your login or reading data in transit. CrossRose does not verify the server's
 identity, so avoid syncing on untrusted networks.
 
 ## Catch Up a Folder
@@ -125,7 +125,7 @@ completed stays applied.
 With **Clippings** on, book and folder syncs send saved clippings. Use **Sync
 Clippings** to upload clippings without changing reading positions.
 
-Clippings are upload-only. CrossInk does not download clippings from the server
+Clippings are upload-only. CrossRose does not download clippings from the server
 or remove a server clipping when you delete its local copy. Existing server
 notes and colors are kept, and clippings deleted on the server are not restored
 by a retry.
@@ -145,7 +145,7 @@ menu and try **Sync Book** again.
 
 ## Nearby Stats Sync
 
-Nearby Stats Sync shares all-time totals directly between nearby CrossInk
+Nearby Stats Sync shares all-time totals directly between nearby CrossRose or CrossInk
 readers. It does not need a Wi-Fi network, server, or account.
 
 ### What Gets Synced

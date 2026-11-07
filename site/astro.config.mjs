@@ -28,9 +28,10 @@ function rewriteMarkdownLinks() {
         return;
       }
 
-      const rootDocUrl = node.url
-        .replace(/^(\.\.\/)+SCOPE\.md(#.*)?$/i, "https://github.com/uxjulia/CrossInk/blob/main/SCOPE.md$2")
-        .replace(/^(\.\.\/)+GOVERNANCE\.md(#.*)?$/i, "https://github.com/uxjulia/CrossInk/blob/main/GOVERNANCE.md$2");
+      const rootDocUrl = node.url.replace(
+        /^(\.\.\/)+SCOPE\.md(#.*)?$/i,
+        "https://github.com/crossrose-reader/CrossRose/blob/main/SCOPE.md$2",
+      );
       if (rootDocUrl !== node.url) {
         node.url = rootDocUrl;
         return;
@@ -61,5 +62,8 @@ export default defineConfig({
   vite: {
     plugins: [watchExternalDocs()],
   },
-  site: "https://www.crossink.dev",
+  // GitHub Pages project site: https://crossrose-reader.github.io/CrossRose/
+  // Every root path in the templates goes through withBase() in src/lib/docs.ts.
+  site: "https://crossrose-reader.github.io",
+  base: "/CrossRose",
 });

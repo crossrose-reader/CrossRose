@@ -19,3 +19,8 @@ const char* gitDirtyFlag();
 #ifndef CROSSINK_FIRMWARE_DEVICE_TYPE
 #define CROSSINK_FIRMWARE_DEVICE_TYPE "unknown"
 #endif
+
+// Set from [crossink] product_name in platformio.ini.
+#ifndef CROSSINK_PRODUCT_NAME
+#define CROSSINK_PRODUCT_NAME "CrossRose"
+#endif

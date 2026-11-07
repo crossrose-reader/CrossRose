@@ -5,11 +5,11 @@ nav_order: 4
 
 # SD Card Fonts
 
-CrossInk can load extra fonts from the SD card, including fonts that cover other
+CrossRose can load extra fonts from the SD card, including fonts that cover other
 writing systems (Chinese/Japanese/Korean, Cyrillic, Greek, and more).
 
 - **Every reader** can use `.cpfont` font packs. These are fonts converted for
-  CrossInk, with one file per size.
+  CrossRose, with one file per size.
 - **X4 Classic, X4 Pro, and Sticky** can also use ordinary static TrueType
   (`.ttf`) and OpenType (`.otf`) font files directly, in any size. The original
   X3 and X4 need `.cpfont` files.
@@ -62,7 +62,7 @@ There are three ways to install fonts:
     `/fonts/MyFont/MyFont-Regular.ttf` alongside its bold, italic, and bold
     italic files.
 
-3.  Insert the SD card and power on your CrossInk device. If it was already on,
+3.  Insert the SD card and power on your CrossRose device. If it was already on,
     restart it so the new fonts are found.
 
 ### Option 2: Download from device
@@ -97,7 +97,7 @@ must be 2 MiB or smaller, and the family must total 6 MiB or less. See
 EPUB books can use a different installed SD-card family for dictionary definitions.
 Set it for all books in **Settings > Reader > Font Options > Dictionary Font**, or for
 one book from the reader menu's font options. If a saved point size is no longer
-available, CrossInk chooses the closest size from the dictionary family. When the
+available, CrossRose chooses the closest size from the dictionary family. When the
 reader is low on memory, the dictionary may show in your reader font instead. This
 is normal. See [Dictionary](./dictionary.md) for more.
 
