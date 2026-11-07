@@ -310,7 +310,13 @@ let allSettings = [];
       for (const key in changes) {
         originalValues[key] = changes[key];
       }
-      if (Object.prototype.hasOwnProperty.call(changes, 'trackReadingStats')) {
+      // Re-read what the device stored: it snaps stepped numbers (617 ms is saved as 600 ms), and
+      // Track Reading Stats changes which settings are listed.
+      const savedNumber = Object.keys(changes).some(function(key) {
+        const setting = findSetting(key);
+        return setting && setting.type === 'value';
+      });
+      if (savedNumber || Object.prototype.hasOwnProperty.call(changes, 'trackReadingStats')) {
         await loadSettings();
       }
       updateOpdsDestinations();
