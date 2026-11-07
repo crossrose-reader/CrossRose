@@ -168,11 +168,12 @@ class BuildIdentityTest(unittest.TestCase):
         previous = globals_["get_crossink_version"]
         self.addCleanup(globals_.__setitem__, "get_crossink_version", previous)
         globals_["get_crossink_version"] = lambda _: "1.6.1"
-        # CrossRose has no RC builds. A nightly name is not a plain X.Y.Z, so
-        # the support export says "unknown" and keeps the source SHA instead.
+        # CrossRose has no RC builds. A nightly is a pre-release of the
+        # version in platformio.ini and reports that, as CrossInk's RCs do.
         for release, expected in (("1.6.2", "1.6.2"),
                                   ("v1.6.3", "1.6.3"),
-                                  ("1.6.2-nightly.20261201", "unknown"),
+                                  ("1.6.1-nightly.20261201", "1.6.1"),
+                                  ("v1.6.1-nightly.20261201", "1.6.1"),
                                   ("PRIVATE_VERSION", "unknown")):
             with patch.dict(os.environ, {"CROSSINK_RELEASE_VERSION": release}):
                 env = Env("default")
