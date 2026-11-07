@@ -769,18 +769,20 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
       MIN_READING_IDLE_TIME_THRESHOLD_SECONDS / READING_IDLE_TIME_THRESHOLD_UNIT_SECONDS;
   static constexpr uint8_t MAX_READING_IDLE_TIME_THRESHOLD_UNITS =
       MAX_READING_IDLE_TIME_THRESHOLD_SECONDS / READING_IDLE_TIME_THRESHOLD_UNIT_SECONDS;
-  // The hold fires while the finger is still down, but taps and swipes fire on release. 500 ms
-  // matches the SDK's own touch long-press (TOUCH_LONG_PRESS_MS), so a slow tap, a finger resting
-  // before a swipe, or the first finger of a pinch is not mistaken for a hold. Swipes may still
-  // last up to 700 ms (TOUCH_SWIPE_MAX_MS), so delays below that trade some slow swipes for speed.
-  static constexpr uint16_t MIN_HOLD_TO_SELECT_DELAY_MS = 500;
+  // The hold fires while the finger is still down, but taps and swipes fire on release. The reader
+  // times this hold itself rather than waiting for the SDK's touch long-press (TOUCH_LONG_PRESS_MS,
+  // 500 ms), so the minimum can sit below it. Delays under 500 ms open word selection sooner but
+  // are more likely to take a slow tap on text, a finger resting before a swipe, or the first
+  // finger of a pinch as a hold. Swipes may last up to 700 ms (TOUCH_SWIPE_MAX_MS), so every delay
+  // below that trades some slow swipes for speed.
+  static constexpr uint16_t MIN_HOLD_TO_SELECT_DELAY_MS = 400;
   static constexpr uint16_t MAX_HOLD_TO_SELECT_DELAY_MS = 1000;
-  static constexpr uint16_t HOLD_TO_SELECT_DELAY_STEP_MS = 50;
+  static constexpr uint16_t HOLD_TO_SELECT_DELAY_STEP_MS = 100;
   static constexpr uint16_t DEFAULT_HOLD_TO_SELECT_DELAY_MS = 1000;
   static_assert(DEFAULT_HOLD_TO_SELECT_DELAY_MS >= MIN_HOLD_TO_SELECT_DELAY_MS &&
                     DEFAULT_HOLD_TO_SELECT_DELAY_MS <= MAX_HOLD_TO_SELECT_DELAY_MS &&
                     (DEFAULT_HOLD_TO_SELECT_DELAY_MS - MIN_HOLD_TO_SELECT_DELAY_MS) % HOLD_TO_SELECT_DELAY_STEP_MS == 0,
-                "Hold to Select Delay default must be on the 50 ms grid inside its range");
+                "Hold to Select Delay default must be on the step grid inside its range");
   static constexpr size_t MIN_DEVICE_NAME_LENGTH = 2;
   static constexpr size_t MAX_DEVICE_NAME_LENGTH = sizeof(deviceName) - 1;
 

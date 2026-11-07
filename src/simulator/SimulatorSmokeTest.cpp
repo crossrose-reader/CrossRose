@@ -3657,7 +3657,7 @@ class SimulatorSmokeTest {
   }
 
   // Hold to Select Delay: Reader row only on touch devices; every write path stores a value on the
-  // 50 ms grid inside its range; both hold sites share one threshold; button-only builds keep the key.
+  // step grid inside its range; both hold sites share one threshold; button-only builds keep the key.
   static void verifyHoldToSelectDelay(const std::vector<SettingInfo>& all) {
     constexpr uint16_t minDelay = CrossPointSettings::MIN_HOLD_TO_SELECT_DELAY_MS;
     constexpr uint16_t maxDelay = CrossPointSettings::MAX_HOLD_TO_SELECT_DELAY_MS;
@@ -3672,10 +3672,10 @@ class SimulatorSmokeTest {
     // The picker label and result use this; it must clamp and snap like settings load.
     if (CrossPointSettings::normalizeHoldToSelectDelayMs(0) != minDelay ||
         CrossPointSettings::normalizeHoldToSelectDelayMs(617) != 600 ||
-        CrossPointSettings::normalizeHoldToSelectDelayMs(625) != 650 ||
+        CrossPointSettings::normalizeHoldToSelectDelayMs(650) != 700 ||
         CrossPointSettings::normalizeHoldToSelectDelayMs(5000) != maxDelay ||
         CrossPointSettings::normalizeHoldToSelectDelayMs(UINT32_MAX) != maxDelay)
-      fail("Hold to Select Delay picker normalization is off the 50 ms grid");
+      fail("Hold to Select Delay picker normalization is off its step grid");
 
     SETTINGS.holdToSelectDelayMs = 600;
     if (ReaderUtils::touchHoldOpensWordSelection(599) || !ReaderUtils::touchHoldOpensWordSelection(600))
@@ -3707,17 +3707,17 @@ class SimulatorSmokeTest {
 #endif
 
     // Round trip. Button-only builds hide the setting but must still carry it through settings.json.
-    SETTINGS.holdToSelectDelayMs = 650;
+    SETTINGS.holdToSelectDelayMs = 700;
     JsonDocument holdSaved;
     SETTINGS.toJson(holdSaved);
-    if ((holdSaved["holdToSelectDelayMs"] | 0) != 650) fail("settings.json dropped Hold to Select Delay");
+    if ((holdSaved["holdToSelectDelayMs"] | 0) != 700) fail("settings.json dropped Hold to Select Delay");
     SETTINGS.holdToSelectDelayMs = CrossPointSettings::DEFAULT_HOLD_TO_SELECT_DELAY_MS;
     SETTINGS.fromJson(holdSaved.as<JsonVariantConst>());
-    if (SETTINGS.holdToSelectDelayMs != 650) fail("Hold to Select Delay round-trip mismatch");
+    if (SETTINGS.holdToSelectDelayMs != 700) fail("Hold to Select Delay round-trip mismatch");
     JsonDocument withoutHoldDelay;
     withoutHoldDelay["libraryShowEpub"] = SETTINGS.libraryShowEpub;
     SETTINGS.fromJson(withoutHoldDelay.as<JsonVariantConst>());
-    if (SETTINGS.holdToSelectDelayMs != 650) fail("Missing Hold to Select Delay key changed the stored value");
+    if (SETTINGS.holdToSelectDelayMs != 700) fail("Missing Hold to Select Delay key changed the stored value");
 
     // A hold outside every text band (margin, gap, image) skips word selection; inside never does.
     ReaderTextTouchBands bands;
