@@ -3,11 +3,11 @@ title: User Guide
 nav_order: 1.5
 ---
 
-# CrossInk User Guide
+# CrossRose User Guide
 
 This guide covers day-to-day device use. Your books, settings, and reading progress are stored on the SD card, the small memory card inside the device. For focused reference material, see [Reader Features](./reader-features.md), [Controls](./controls.md), [SD Card Fonts](./sd-card-fonts.md), [File Transfer](./webserver.md), [Plugins](./sd-plugins.md), and [Troubleshooting](./troubleshooting.md). For Dashboard and Minimal Home-screen gestures, see [Touch Navigation](./touch-navigation.md).
 
-- [CrossInk User Guide](#crossink-user-guide)
+- [CrossRose User Guide](#crossrose-user-guide)
   - [1. Hardware Overview](#1-hardware-overview)
     - [Button Layout](#button-layout)
     - [Taking a Screenshot](#taking-a-screenshot)
@@ -58,7 +58,7 @@ This guide covers day-to-day device use. Your books, settings, and reading progr
 
 ### Button Layout
 
-CrossInk supports many devices with various button layouts. For the X3/X4 devices with front buttons, by default they will use the following layout from left to right, and this guide will refer to them by those names.
+CrossRose supports many devices with various button layouts. For the X3/X4 devices with front buttons, by default they will use the following layout from left to right, and this guide will refer to them by those names.
 
 <table>
   <thead>
@@ -106,7 +106,7 @@ If the device freezes, or after a firmware update, restart it: press and release
 Upon turning the device on for the first time, you will be placed on the **[Home](#31-home-screen)** screen.
 
 > [!NOTE]
-> On subsequent restarts, CrossInk will automatically reopen the last book you were reading.
+> On subsequent restarts, CrossRose will automatically reopen the last book you were reading.
 
 ---
 
@@ -187,7 +187,7 @@ Clippings** upload only that data. The last two appear when that data is turned
 on under **What to Sync**. See [Reading Stats Sync](./reading-stats-sync.md#ways-to-sync).
 
 Below it, the **Nearby Device** section has **Receive File**, which receives a supported
-book or image directly from another nearby CrossInk reader without joining a
+book or image directly from another nearby CrossRose or CrossInk reader without joining a
 Wi-Fi network. See [Nearby File Transfer](./nearby-file-transfer.md) for the
 complete sender and receiver workflow.
 
@@ -198,7 +198,7 @@ disconnect behavior.
 
 ### 3.5.1 Calibre Wireless Transfers
 
-CrossInk supports sending books from Calibre using the CrossPoint Reader device plugin.
+CrossRose supports sending books from Calibre using the CrossPoint Reader device plugin.
 
 1. Download the current `crosspoint_reader` plugin ZIP from the
    [CrossPoint Reader plugin releases](https://github.com/crosspoint-reader/calibre-plugins/releases).
@@ -367,7 +367,7 @@ Which entries you see depends on your device. Button devices show **Front Button
 
 - **Device**: Opens a submenu with **Device Name**, **Time to Sleep**, **Custom Boot Screen**, **Language**, **Keyboard layouts**, and, on devices with a scalable-font reader, **UI Fallback Font**. Devices with a real-time clock also show **Clock Format**, **Clock UTC Offset**, **Date Format**, **Date Separator**, and **Sync Date/Time**.
   - **Time to Sleep**: How long the device stays idle before it goes to sleep on its own, in minutes, or **Never**.
-  - **Custom Boot Screen**: On by default. When it is off, CrossInk shows the standard logo at startup and keeps the current sleep screen visible when you wake it with the Power button, even if a custom image or boot-screen folder is set up. Turning it off does not delete your image or folders; turn it back on to use them again. See [Boot Screen](#38-boot-screen).
+  - **Custom Boot Screen**: On by default. When it is off, CrossRose shows the standard logo at startup and keeps the current sleep screen visible when you wake it with the Power button, even if a custom image or boot-screen folder is set up. Turning it off does not delete your image or folders; turn it back on to use them again. See [Boot Screen](#38-boot-screen).
   - **UI Fallback Font**: Fill characters missing from the built-in font throughout menus, filenames, and other interface text. Put one static regular `.ttf` or `.otf` font, plus optional bold, in a family folder under `/.crossink/languages/fonts/`. Supported characters and your reading font stay unchanged. See [UI fallback fonts](./languages.md#add-missing-characters-with-ui-fallback-font).
 
 - **Files & Cache**: **Show Hidden Files**, **Hide File Extension**, **File Browser Display** (1 or 2 lines per file), **Clear Finished Books from History**, **Move Finished Books to Read Folder**, and **Clear Reading Cache** (frees space and fixes books that look wrong; your progress and bookmarks are kept).
@@ -384,11 +384,11 @@ Which entries you see depends on your device. Button devices show **Front Button
 
 - **About**: Shows the device model, software version, screen, storage, and memory details. Use the buttons or swipe to scroll; **Back** returns to Settings. The figures are captured when the screen opens; reopen it for a fresh snapshot. See [Troubleshooting](./troubleshooting.md#device-information). You can also choose **Export** to save a support file (`/crossink-support.json`) to the SD card, with device and global settings alone or with the last opened EPUB's saved settings without its title or filename. Nothing is uploaded. See [export coverage and privacy](./troubleshooting.md#export-support-information).
 
-- **Language** (in **Device**): Set the menu language. CrossInk supports 28 languages: English, Spanish, French, German, Czech, Brazilian Portuguese, Russian, Swedish, Romanian, Catalan, Ukrainian, Belarusian, Italian, Polish, Finnish, Danish, Dutch, Turkish, Kazakh, Hungarian, Lithuanian, Slovenian, Valencian, Hebrew, Vietnamese, Slovak, Portuguese (Portugal), and Arabic. English is included. Download other languages on the reader or install them from SD; see [Languages](./languages.md).
+- **Language** (in **Device**): Set the menu language. CrossRose supports 28 languages: English, Spanish, French, German, Czech, Brazilian Portuguese, Russian, Swedish, Romanian, Catalan, Ukrainian, Belarusian, Italian, Polish, Finnish, Danish, Dutch, Turkish, Kazakh, Hungarian, Lithuanian, Slovenian, Valencian, Hebrew, Vietnamese, Slovak, Portuguese (Portugal), and Arabic. English is included. Download other languages on the reader or install them from SD; see [Languages](./languages.md).
 
 #### 3.6.5 OPDS Servers (Multiple Libraries)
 
-CrossInk supports saving multiple OPDS servers and switching between them when browsing catalogs.
+CrossRose supports saving multiple OPDS servers and switching between them when browsing catalogs.
 
 1. Open **Settings > System > OPDS Servers**.
 
@@ -447,7 +447,7 @@ Behavior notes:
 
 #### 3.6.7 Sync Server Quick Setup
 
-CrossInk can sync your reading progress between devices using a sync server. It also works with KOReader apps and devices that use the same server and account.
+CrossRose can sync your reading progress between devices using a sync server. It also works with KOReader apps and devices that use the same server and account.
 
 Use the same server and account on every device you want to sync.
 
@@ -495,8 +495,8 @@ to remove it; saved values are hidden.
 
 Once any of the options above is set up, press **Confirm** while reading to open the Reader Menu and select **Sync Book** (on button devices it is in the **Bookmarks** tab). You can also set **Settings > Controls > Front Buttons > Long-press Menu** to **Sync Book** (or assign **Sync Book** to a Power button action) and hold **Confirm** to start a sync directly.
 
-- With **Sync Behavior** set to **Ask on conflicts**, CrossInk asks only when the server's position differs from yours: choose **Apply Remote** to jump to remote progress or **Upload Local** to push current progress. With no remote position it uploads without asking, and matching positions show **Already synced**.
-- With **Sync Behavior** set to **Smart sync**, CrossInk auto-resolves simple cases: upload when no remote progress exists, confirm and leave both unchanged when local and remote progress are already synchronized, upload when local progress is further ahead, or apply remote when remote progress is further ahead.
+- With **Sync Behavior** set to **Ask on conflicts**, CrossRose asks only when the server's position differs from yours: choose **Apply Remote** to jump to remote progress or **Upload Local** to push current progress. With no remote position it uploads without asking, and matching positions show **Already synced**.
+- With **Sync Behavior** set to **Smart sync**, CrossRose auto-resolves simple cases: upload when no remote progress exists, confirm and leave both unchanged when local and remote progress are already synchronized, upload when local progress is further ahead, or apply remote when remote progress is further ahead.
 
 ### 3.7 Sleep Screen
 
@@ -505,8 +505,8 @@ The sleep screen is what the display shows while the device sleeps. To change it
 | Mode               | Behavior                                                                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **None**           | A blank screen.                                                                                                                                        |
-| **Dark** (default) | The CrossInk logo on a dark background.                                                                                                                |
-| **Light**          | The CrossInk logo on a white background.                                                                                                               |
+| **Dark** (default) | The CrossRose logo on a dark background.                                                                                                                |
+| **Light**          | The CrossRose logo on a white background.                                                                                                               |
 | **Custom**         | A custom image from the SD card (see below). Falls back to **Dark** if no custom image is found.                                                       |
 | **Cover**          | The cover of the currently open book. Falls back to **Dark** if no book is open.                                                                       |
 | **Cover + Custom** | The cover of the currently open book, shown only while actively reading. Falls back to **Custom** behavior when not reading.                           |
@@ -551,12 +551,12 @@ In **Page Overlay** mode, white BMP pixels and transparent PNG pixels let the cu
 ### 3.8 Boot Screen
 
 The **Custom Boot Screen** toggle is in **Settings > System > Device** and is enabled by
-default. When it is on, you can replace the default CrossInk logo shown during
+default. When it is on, you can replace the default CrossRose logo shown during
 a cold boot with BMP images stored on the SD card. A configured custom boot
 screen is also shown after a power-button wake. This is separate from the
 sleep screen.
 
-CrossInk supports two ways to choose a custom boot screen:
+CrossRose supports two ways to choose a custom boot screen:
 
 - **One fixed image:** In **[Browse Files](#33-browse-files-screen)**, open a
   BMP image from any folder, open its context menu, and choose **Set Boot
@@ -564,7 +564,7 @@ CrossInk supports two ways to choose a custom boot screen:
   folder. To stop using it, open the same image and choose **Clear Boot Screen**.
 
 - **Rotating images:** Create a `/.bootscreen` folder in the root of the SD card
-  and place BMP files directly inside it. CrossInk randomly selects an image
+  and place BMP files directly inside it. CrossRose randomly selects an image
   each time it starts and avoids recently used images where possible. A
   `/bootscreen` folder is also supported. Folder names are case-insensitive; if
   both folders exist, `/.bootscreen` takes priority.
@@ -572,7 +572,7 @@ CrossInk supports two ways to choose a custom boot screen:
 If you keep both boot-screen folders, `/.bootscreen` takes priority even when
 it is empty. Remove or rename it to use `/bootscreen` instead.
 
-If an image cannot be opened, CrossInk uses another available boot image or its
+If an image cannot be opened, CrossRose uses another available boot image or its
 standard logo. With no custom image or boot-screen folder, waking normally
 keeps the sleep screen visible.
 
@@ -586,7 +586,7 @@ If new images are not being picked, upload them through **File Transfer** or
 
 ### 3.9 Custom Fonts (SD Card)
 
-CrossInk can load extra fonts from the SD card, beyond the built-in Lexend Deca and Bitter families. Custom fonts can cover more scripts, including CJK (Chinese, Japanese, Korean).
+CrossRose can load extra fonts from the SD card, beyond the built-in Lexend Deca and Bitter families. Custom fonts can cover more scripts, including CJK (Chinese, Japanese, Korean).
 
 There are three ways to install fonts:
 
@@ -712,7 +712,7 @@ the slider track rounds the selected value to the nearest multiple of five.
 When reading an EPUB that contains footnotes, tap a reference or choose
 **Footnotes** from the Reader Menu's **More** tab (or an assigned shortcut).
 If there is one footnote, it opens directly. With several visible references,
-CrossInk highlights them on the reading page: use the direction buttons to
+CrossRose highlights them on the reading page: use the direction buttons to
 choose one and **Confirm** to open it, or tap the reference. Links without a
 visible target use a list instead. Press **Back** to return to your original
 reading position.
@@ -794,7 +794,7 @@ Dictionary lookup supports word selection, recent per-book history, chained look
 
 ## 6. Current Limitations & Roadmap
 
-CrossInk is in active development. These are the current limits:
+CrossRose is in active development. These are the current limits:
 
 - **Cover images:** Large cover images embedded in an EPUB can take several
   seconds to convert for the sleep screen and Home-screen thumbnail. If a book
@@ -809,7 +809,7 @@ CrossInk is in active development. These are the current limits:
 
 For network, upload, and settings problems, see [Troubleshooting](./troubleshooting.md).
 
-**Reporting a bug or crash:** If something goes wrong, [open an issue](https://github.com/uxjulia/CrossInk/issues) and describe what you were doing. After a crash, CrossInk shows a **System Crash** screen and saves a report to the SD card. Look for `crash_report.txt` in the top (root) folder of the SD card and attach it to your report. Press **Back** (or tap the screen) to leave the crash screen. You can also open **Settings > System > About** and choose **Export** to save a settings summary you can share; nothing is uploaded. See [Export Support Information](./troubleshooting.md#export-support-information).
+**Reporting a bug or crash:** If something goes wrong, [open an issue](https://github.com/uxjulia/CrossInk/issues) and describe what you were doing. After a crash, CrossRose shows a **System Crash** screen and saves a report to the SD card. Look for `crash_report.txt` in the top (root) folder of the SD card and attach it to your report. Press **Back** (or tap the screen) to leave the crash screen. You can also open **Settings > System > About** and choose **Export** to save a settings summary you can share; nothing is uploaded. See [Export Support Information](./troubleshooting.md#export-support-information).
 
 **If the device keeps restarting (a "bootloop"):**
 
@@ -818,4 +818,4 @@ For network, upload, and settings problems, see [Troubleshooting](./troubleshoot
 
 **If the Home screen also fails**, the saved settings or cache may be damaged. Turn the device off, put the SD card in a computer, and delete the `.crosspoint` folder on the SD card. This resets settings, reading progress, bookmarks, and caches (see [Data and Cache](./data-cache.md)). To lose less, delete only `crossink-settings.json`, `settings.json`, `state.json`, or the `epub_*` folders inside `.crosspoint/`.
 
-**If a firmware update went wrong:** Put a working `firmware.bin` on the root of the SD card, turn the device off, then hold **Power** and **Up** while turning it on (use **Down** instead of **Up** on X4 Pro and X4 Classic). CrossInk opens a screen where you pick the `.bin` file to install. You can also reflash over USB; see [Installation](./installation.md).
+**If a firmware update went wrong:** Put a working `firmware.bin` on the root of the SD card, turn the device off, then hold **Power** and **Up** while turning it on (use **Down** instead of **Up** on X4 Pro and X4 Classic). CrossRose opens a screen where you pick the `.bin` file to install. You can also reflash over USB; see [Installation](./installation.md).

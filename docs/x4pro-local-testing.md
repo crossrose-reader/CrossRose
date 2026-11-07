@@ -1,6 +1,6 @@
 # Local X4 Pro firmware testing
 
-CrossInk owns the build, flash composition, fixtures, assertions and evidence.
+CrossRose owns the build, flash composition, fixtures, assertions and evidence.
 The emulator is an external dependency, initially pinned to
 [`serialx/x4prosim` `55f6917885d89b60834cf8987177813e9fef648c`](https://github.com/serialx/x4prosim/tree/55f6917885d89b60834cf8987177813e9fef648c).
 This supplements the fast native CMake/CTest, sanitizer and SDL simulator tests.
@@ -16,7 +16,7 @@ crossink-emulator x3
 crossink-emulator x4
 ```
 
-From any CrossInk checkout (including a nested directory), the command builds
+From any CrossRose checkout (including a nested directory), the command builds
 that checkout, including staged, unstaged and untracked source and existing SDK
 edits. Outside a checkout it defaults to `~/code/crossink`. Override with
 `--source /path/to/crossink`, or set `CROSSINK_SOURCE` for a preferred checkout.
@@ -135,7 +135,7 @@ rerun or promoted to the newer runtime.
 
 ## Current acceptance status
 
-On macOS arm64, the pinned native and browser runtimes boot CrossInk X4 Pro.
+On macOS arm64, the pinned native and browser runtimes boot CrossRose X4 Pro.
 The native suite passes Home, synthetic EPUB opening/page-turn and a settings
 change on source `6435493600de5e54a0ab823d884b4d76591bab75`, SDK
 `fce2403b5b52042bf819e4b20b6bbcb16c9dfdaf`, using `x4-pro-debug`.
@@ -215,7 +215,7 @@ additional installations were Homebrew core `libslirp 4.9.5`, `libgcrypt 1.12.4`
 Browser probing uses existing Node 26.11.1 (Node 22+ provides WebSocket) and
 Chrome. Neither npm packages nor a new browser install are needed.
 
-## Build and compose CrossInk firmware
+## Build and compose CrossRose firmware
 
 Initialize an isolated firmware checkout with `git submodule update --init
 --recursive`. Coordinate exclusive use of the S3 PlatformIO core before building.
@@ -267,7 +267,7 @@ The composer uses that build's `bootloader.bin` at `0`, `partitions.bin` at
 It checks ESP32-S3 headers, boot-asset bounds and app0 capacity, then creates a
 complete 16 MiB image. Use X4 Pro firmware; a chip ID alone does not identify a
 board or prove Sticky compatibility. Native readiness also checks the logged
-`xteink_x4_pro` board. Browser receives the complete image, preserving CrossInk's
+`xteink_x4_pro` board. Browser receives the complete image, preserving CrossRose's
 own bootloader and partitions rather than invoking CrossPoint bare-app composition.
 
 ## One manual command
@@ -302,7 +302,7 @@ assertion, console capture and screenshot of this private tab:
 node /Users/home/code/crossink-x4pro-testing/scripts/x4pro_local/browser_probe.mjs /absolute/path/to/run-directory 90
 ```
 
-The probe uses CrossInk Home entry followed by panel completion, independent of
+The probe uses CrossRose Home entry followed by panel completion, independent of
 the fork's CrossPoint `[MEM]` UI status. Download the SD image through the browser
 before closing if guest writes are wanted as an artifact. Browser SD is profile
 persistent; flash writes are ephemeral. Editing card files resets the guest.
@@ -311,7 +311,7 @@ Timing is the emulator's model timing, not a measured hardware performance resul
 
 The WASM HTTP adapter accepts untrusted guest TLS and strips Authorization.
 Keep browser runs offline here. Use native QEMU's opt-in Wi-Fi/NAT for HTTPS
-tests; it retains CrossInk certificate validation. The default offline workflow
+tests; it retains CrossRose certificate validation. The default offline workflow
 uses `-nic none` and adds no port forwards. Neither mode changes certificate,
 browser security or system permissions. Never upload private firmware to the
 hosted emulator.
@@ -325,7 +325,7 @@ python3 /Users/home/code/crossink-x4pro-testing/scripts/x4pro_local/run.py test
 The suite uses a fresh `sd-assets` card, Lyra portrait layout, Small UI scale,
 English fallback labels and default text antialiasing. It asserts:
 
-1. CrossInk X4 Pro Home entry and a completed panel refresh.
+1. CrossRose X4 Pro Home entry and a completed panel refresh.
 2. Open original synthetic `TestBook.epub`, render a 32-page chapter, turn one
    page, leave the reader and verify saved spine `0`, page `1`, and page count.
 3. Change Display > Dark Mode and verify `screenInverted: 1` in saved SD JSON.

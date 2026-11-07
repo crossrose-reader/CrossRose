@@ -5,7 +5,7 @@ nav_order: 8
 
 # Nearby Position Sync
 
-CrossInk can share the current EPUB reading position between two nearby readers running CrossInk. The sync is direct reader-to-reader over a direct connection; it does not need a Wi-Fi network, a server, an account, or KOReader's online sync service.
+CrossRose can share the current EPUB reading position between two nearby readers running CrossRose or CrossInk. The sync is direct reader-to-reader over a direct connection; it does not need a Wi-Fi network, a server, an account, or KOReader's online sync service.
 
 Nearby Position Sync is separate from [Reading Stats Sync](./reading-stats-sync.md). Stats Sync shares all-time reading totals. Nearby Position Sync shares one in-book location for the currently open EPUB.
 
@@ -20,11 +20,11 @@ The receiving reader only applies the position after you confirm it.
 
 ## Requirements
 
-- Both readers must be running CrossInk.
+- Both readers must be running CrossRose or CrossInk.
 - Both readers must have the same EPUB open.
 - Both readers must be near each other.
 
-CrossInk checks that both readers have the same book using the **Document Matching** setting from **Settings > System > Sync Server**. With **Filename** matching it compares file names. With **Binary** matching it compares the contents of the EPUB file.
+CrossRose checks that both readers have the same book using the **Document Matching** setting from **Settings > System > Sync Server**. With **Filename** matching it compares file names. With **Binary** matching it compares the contents of the EPUB file.
 
 ## How To Use It
 
@@ -45,7 +45,7 @@ The two readers are not opened to the same EPUB according to the current documen
 
 **Version mismatch. Position not synced**
 
-The other reader is using an incompatible version of Nearby Position Sync. Update both readers to the same CrossInk version.
+The other reader is using an incompatible version of Nearby Position Sync. Update both readers to compatible CrossRose or CrossInk versions.
 
 **No nearby reader found** or **Position sync timed out**
 

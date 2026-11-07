@@ -78,7 +78,7 @@ headings and emphasis, is left unchanged.
 
 ## Font Sizes And Downloadable Font Ranges
 
-CrossInk offers a wide range of font sizes, from small for dense pages to very large text.
+CrossRose offers a wide range of font sizes, from small for dense pages to very large text.
 
 The reader can also use font packs stored on the SD card, with a choice of size ranges. This keeps the device's built-in storage free while still giving you extra sizes and custom fonts.
 
@@ -155,14 +155,14 @@ of pages may change.
 
 Publisher Page Numbers show page labels supplied by the EPUB, such as the
 printed page numbers from a physical edition. When the book includes labeled
-page-break markers, CrossInk displays those labels in the reader margin beside
+page-break markers, CrossRose displays those labels in the reader margin beside
 the matching content.
 
 To turn them on, open the Reader Menu and select **Layout > Publisher Page
 Numbers**, or use **Settings > Reader > Publisher Page Numbers**. If the EPUB
 has no labeled page-break markers, there is nothing to show.
 
-Publisher page markers are kept by the **CrossInk Default** and **Balanced**
+Publisher page markers are kept by the **CrossRose Default** and **Balanced**
 render modes. **Light** and **Safe Mode** leave them out.
 
 ## Stable Page Numbers
@@ -184,7 +184,7 @@ You can then jump to a page with **Go to Stable Page** on the Reader Menu's
 **More** tab.
 
 A page number appears only if the EPUB contains this reference information. To
-add it, optimize the EPUB in the CrossInk web interface (see
+add it, optimize the EPUB in the CrossRose web interface (see
 [File Transfer](./webserver.md)) or with [Inky](https://inky.crossink.dev)
 before copying it to the reader. In the optimizer's settings,
 **Characters per Page** sets the size of a reference page. The default is 1,500
@@ -250,7 +250,7 @@ different interval for each book. Open the Reader Menu's **More** tab and select
 
 ## Time Left
 
-CrossInk can show an estimate of the time left in the current chapter or book.
+CrossRose can show an estimate of the time left in the current chapter or book.
 Add **Time Left** to a [status bar](#reader-status-bars) to see it.
 
 The estimate is based on how fast you have been reading recently. Jumps such as
@@ -263,7 +263,7 @@ learning again from fresh page turns.
 
 ## Bookmarks
 
-CrossInk supports EPUB bookmarks from the reader.
+CrossRose supports EPUB bookmarks from the reader.
 
 You can:
 
@@ -275,7 +275,7 @@ You can:
 
 ## Clippings And Highlights
 
-CrossInk supports EPUB text clippings from the reader. Use **Create Clipping**
+CrossRose supports EPUB text clippings from the reader. Use **Create Clipping**
 from the reader menu or a configured shortcut, select text, and save it.
 
 On button devices, move the cursor with the direction buttons, press **Select**
@@ -297,7 +297,7 @@ A saved clipping is used in three ways:
 - It is appended to `/My Clippings.txt` on the SD card in a Kindle-style text format
 
 The in-app clipping list is stored separately from the text export. Deleting a
-clipping from CrossInk removes the saved clipping and highlight from the device
+clipping from CrossRose removes the saved clipping and highlight from the device
 UI, but it does not rewrite old entries that were already appended to
 `/My Clippings.txt`.
 
@@ -311,7 +311,7 @@ clipping and its highlight, not an entry already exported to
 
 ## Reading Stats
 
-CrossInk keeps track of your reading time for each EPUB and XTC book and adds
+CrossRose keeps track of your reading time for each EPUB and XTC book and adds
 it up into all-time totals. To see a book's **Reading Stats** without opening
 it, long-press the book in **Library** or **Browse Files** and choose **Reading
 Stats**.
@@ -339,7 +339,7 @@ For two-device syncing, see [Reading Stats Sync](./reading-stats-sync.md).
 ### Turn tracking on or off
 
 The switch for all books is **Settings > System > Reading Stats > Track Reading
-Stats**. When it is off, CrossInk stops recording new stats. It does not delete
+Stats**. When it is off, CrossRose stops recording new stats. It does not delete
 anything you have saved. Turn it back on and your history returns and recording
 resumes. Reading done while tracking was off is not added afterwards.
 
@@ -358,7 +358,7 @@ Stats** view. Turn it back on to show the history and resume recording.
 
 ## Nearby Position Sync
 
-CrossInk can copy your place in an EPUB from one nearby CrossInk reader to
+CrossRose can copy your place in an EPUB from one nearby CrossRose or CrossInk reader to
 another, directly and without Wi-Fi or an account. Open the same EPUB on both
 readers, then open **Nearby Position Sync** on both. On button devices it is in
 the Reader Menu's **Bookmarks** tab. You can also give it to a shortcut. Press
@@ -373,7 +373,7 @@ For details and troubleshooting, see [Nearby Position Sync](./nearby-position-sy
 
 You can mark a book as finished from the Reader Menu's **Settings** tab (the
 same row changes to **Mark as Unfinished** afterwards). At 99% progress,
-CrossInk also asks whether to mark the book as finished.
+CrossRose also asks whether to mark the book as finished.
 
 Finished EPUB and XTC books show a checkmarked book icon in **Browse Files** and
 in the **Library** list, so you can see at a glance what you have read.
@@ -388,7 +388,7 @@ recent books once you reach its end.
 
 ## Reader Controls And Shortcuts
 
-CrossInk adds reader-focused control options beyond the default button mappings.
+CrossRose adds reader-focused control options beyond the default button mappings.
 
 Examples include:
 

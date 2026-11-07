@@ -60,7 +60,7 @@ The **Look Up Word** option in the reader menu is only visible when a dictionary
 ### Touchscreen
 
 In an EPUB reader with **Touch Reader Controls** enabled, touch and hold a
-word for about one second. CrossInk opens word selection on that word; lift
+word for about one second. CrossRose opens word selection on that word; lift
 your finger to show the floating **Look Up** and **Clip** toolbar.
 Drag either selection handle to adjust the highlighted range. To select a phrase,
 keep holding after selection opens, drag to the last word, then lift your

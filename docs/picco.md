@@ -45,5 +45,5 @@ model. Picco needs an installation that preserves its factory recovery software.
 Do not use firmware intended for an X4 Pro, erase the device, or select a full
 factory-image installation.
 
-CrossInk's Wi-Fi and SD-card firmware-update options are unavailable on Picco.
+CrossRose's Wi-Fi and SD-card firmware-update options are unavailable on Picco.
 Use the supported Picco USB installation method for updates too.

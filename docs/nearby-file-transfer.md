@@ -6,12 +6,12 @@ nav_order: 7.5
 # Nearby File Transfer
 
 Nearby File Transfer sends one supported file directly between two nearby
-CrossInk readers. It connects the two readers directly, so it does not need a Wi-Fi network, internet connection, account, or
+readers running CrossRose or CrossInk. It connects the two readers directly, so it does not need a Wi-Fi network, internet connection, account, or
 computer.
 
 ## Requirements
 
-- Both readers must run compatible CrossInk versions and be nearby.
+- Both readers must run compatible CrossRose or CrossInk versions and be nearby.
 - The receiving reader needs enough free SD-card space for the complete file.
 - Supported file types are EPUB, TXT, XTC, XTCH, PNG, and BMP.
 
@@ -21,14 +21,14 @@ computer.
 2. Select **Start receiving**. The screen stays open while it waits for a
    sender.
 3. To change where received files are saved, select **Change folder** before
-   starting. CrossInk remembers this folder; the default is the SD-card root.
+   starting. CrossRose remembers this folder; the default is the SD-card root.
 4. When the incoming-file prompt appears, check the sender name, file name,
    and size, then select **Accept**. Use **Cancel** or **Back** to decline it.
 5. Wait for the receiving progress screen to finish. After verification, select
    **Read** for a book or **Open** for an image, or use **Back** to return.
 
 If a file with the same name already exists in the destination folder,
-CrossInk asks whether to **Replace** it, **Keep both**, or cancel. **Keep both**
+CrossRose asks whether to **Replace** it, **Keep both**, or cancel. **Keep both**
 creates a separate copy with a numbered suffix.
 
 ## Send a File
@@ -55,7 +55,7 @@ checked. Cancelling or losing the connection keeps any existing file intact.
 **No receiving device appears**
 
 Make sure the receiver has selected **Start receiving**, both readers are close
-together, and both run compatible CrossInk versions. Exit and reopen the transfer
+together, and both run compatible CrossRose or CrossInk versions. Exit and reopen the transfer
 screens on both readers, then try again.
 
 **Unsupported file type**
