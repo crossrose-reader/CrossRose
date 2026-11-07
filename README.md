@@ -111,9 +111,7 @@ CrossRose runs on a small, low-power chip with limited memory (especially on the
 
 ## Installation
 
-The fastest way to install CrossInk is with Inky, CrossInk's web companion app: https://inky.crossink.dev/#flash-tools. Connect your reader to your computer with a USB cable and follow the steps on the page.
-
-You can also download a `firmware-*.bin` file from the [releases page](https://github.com/crossrose-reader/CrossRose/releases) and flash it with the web installer or the command line.
+Download the `firmware-*.bin` file for your device from the [releases page](https://github.com/crossrose-reader/CrossRose/releases). Then install it over USB with the [CrossPoint web installer](https://crosspointreader.com/install) (under **Advanced options**, choose **Custom .bin**), or from the SD card with `Settings > System > SD Card Firmware Update` if your reader already runs CrossRose, CrossInk 1.2.10 or newer, or CrossPoint. Inky, CrossInk's web app, installs CrossInk only. The Boox Picco installs differently: see [BOOX Picco](./docs/picco.md#installation-and-updates).
 
 | Channel | What it is | Updates |
 | --- | --- | --- |
