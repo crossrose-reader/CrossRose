@@ -14,11 +14,14 @@ constexpr StrId HYPHENATION_PATH[] = {StrId::STR_SETTINGS_TITLE, StrId::STR_CAT_
                                       StrId::STR_HYPHENATION_PACKS};
 static_assert(sizeof(LANGUAGES_PATH) / sizeof(StrId) <= RELEASE_NOTES_MAX_PATH);
 static_assert(sizeof(HYPHENATION_PATH) / sizeof(StrId) <= RELEASE_NOTES_MAX_PATH);
+// Without a download host, languages come from the release's SD zip, not the internet.
+constexpr StrId LANGUAGES_BODY =
+    ASSET_DOWNLOADS_CONFIGURED ? StrId::STR_NOTES_2_0_0_LANGUAGES_BODY : StrId::STR_NOTES_2_0_0_LANGUAGES_SD_BODY;
 }  // namespace
 
 const ReleaseNoteItem RELEASE_NOTES[] = {
-    {StrId::STR_NOTES_2_0_0_LANGUAGES_TITLE, StrId::STR_NOTES_2_0_0_LANGUAGES_BODY, LANGUAGES_PATH,
-     sizeof(LANGUAGES_PATH) / sizeof(StrId), nullptr},
+    {StrId::STR_NOTES_2_0_0_LANGUAGES_TITLE, LANGUAGES_BODY, LANGUAGES_PATH, sizeof(LANGUAGES_PATH) / sizeof(StrId),
+     nullptr},
     {StrId::STR_NOTES_2_0_0_HYPHENATION_TITLE, StrId::STR_NOTES_2_0_0_HYPHENATION_BODY, HYPHENATION_PATH,
      sizeof(HYPHENATION_PATH) / sizeof(StrId), nullptr},
     {StrId::STR_NOTES_2_0_0_BOOKS_TITLE, StrId::STR_NOTES_2_0_0_BOOKS_BODY, nullptr, 0, nullptr},
