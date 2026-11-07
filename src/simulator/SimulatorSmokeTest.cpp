@@ -49,6 +49,7 @@
 #include <memory>
 #include <vector>
 
+#include "AssetDownloadConfig.h"
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -6408,8 +6409,11 @@ class SimulatorSmokeTest {
       case 5:
         if (APP_STATE.releaseNotesSeen != 0) fail("Leaving Release Notes from Settings changed the seen revision");
         // Saved German that is not installed (upgrade from built-in translations) gets one-click Update,
-        // until an update was tried for this revision. English and unknown custom codes never do.
-        if (!releaseNotesOfferLanguageUpdate("DE", "EN", 0)) fail("Saved but inactive German should offer Update");
+        // until an update was tried for this revision. English and unknown custom codes never do, and
+        // neither does a build without a download host.
+        if (releaseNotesOfferLanguageUpdate("DE", "EN", 0) != ASSET_DOWNLOADS_CONFIGURED)
+          fail(ASSET_DOWNLOADS_CONFIGURED ? "Saved but inactive German should offer Update"
+                                          : "Update offered without a download host");
         if (releaseNotesOfferLanguageUpdate("DE", "EN", RELEASE_NOTES_REVISION))
           fail("Update must not be offered again after it was tried");
         if (releaseNotesOfferLanguageUpdate("EN", "EN", 0)) fail("English must not offer Update");
@@ -6419,7 +6423,8 @@ class SimulatorSmokeTest {
         releaseNotesPhase = 6;
         break;
       case 6:
-        // FirstRun Install Languages: Settings > System > Device with the Download Languages popup, and the notes seen.
+        // FirstRun Install Languages: Settings > System > Device with the Download Languages popup (the SD
+        // Language list without a download host), and the notes seen.
         if (!activityManager.isCurrentActivityNamed("Home")) fail("Expected Home before What's New Install Languages");
         saveReleaseNotesState(0, RELEASE_NOTES_REVISION);
         openFirstRunReleaseNotes("What's New for Install Languages");
@@ -6437,7 +6442,11 @@ class SimulatorSmokeTest {
         if (!settings) fail("Install Languages did not open Settings");
         if (settings->simulatorActiveSubmenu() != SettingAction::SystemDevice)
           fail("Install Languages did not land in System > Device");
-        if (!settings->simulatorLanguageDownloadsOpen()) fail("Install Languages did not open Download Languages");
+        if (ASSET_DOWNLOADS_CONFIGURED && !settings->simulatorLanguageDownloadsOpen())
+          fail("Install Languages did not open Download Languages");
+        if (!ASSET_DOWNLOADS_CONFIGURED &&
+            (settings->simulatorLanguageDownloadsOpen() || !settings->simulatorOptionPopupActive()))
+          fail("Install Languages did not open the Language list without a download host");
         if (APP_STATE.releaseNotesSeen != RELEASE_NOTES_REVISION ||
             savedStateValue("releaseNotesSeen") != RELEASE_NOTES_REVISION)
           fail("Install Languages did not save releaseNotesSeen");
@@ -6446,8 +6455,18 @@ class SimulatorSmokeTest {
           captureStatusBarScreen("release-notes-download-languages");
         }
         activityManager.goHome();
-        queueStep("Home before What's New Update", SmokeStep::Start, 4);
-        releaseNotesPhase = 9;
+        if (ASSET_DOWNLOADS_CONFIGURED) {
+          queueStep("Home before What's New Update", SmokeStep::Start, 4);
+          releaseNotesPhase = 9;
+          break;
+        }
+        // No download host: What's New never offers Update, so skip its checks (phases 9-12).
+        queueStep("Home after What's New Install Languages", SmokeStep::Start, 4);
+#if CROSSINK_APP_CAP_TOUCH
+        releaseNotesPhase = 13;
+#else
+        releaseNotesPhase = 17;
+#endif
         break;
       }
       case 9:

@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "AssetDownloadConfig.h"
 #include "CrossPointSettings.h"
 #include "DeviceCapabilities.h"
 #include "KOReaderCredentialStore.h"
@@ -1156,7 +1157,10 @@ inline std::vector<SettingInfo> buildSystemDeviceSettingsList(const std::vector<
   addSettingByName(settings, allSettings, StrId::STR_TIME_TO_SLEEP);
   addSettingByName(settings, allSettings, StrId::STR_CUSTOM_BOOTSCREEN);
   settings.push_back(SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language));
-  settings.push_back(SettingInfo::Action(StrId::STR_DOWNLOAD_LANGUAGES, SettingAction::DownloadLanguages));
+  // Without a download host it would only show "Downloads unavailable"; Language installs from SD.
+  if (ASSET_DOWNLOADS_CONFIGURED) {
+    settings.push_back(SettingInfo::Action(StrId::STR_DOWNLOAD_LANGUAGES, SettingAction::DownloadLanguages));
+  }
 #if CROSSINK_SCALABLE_FONTS
   settings.push_back(SettingInfo::Action(StrId::STR_FILENAME_FALLBACK_FONT, SettingAction::FilenameFallbackFont));
 #endif

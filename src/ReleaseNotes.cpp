@@ -4,9 +4,12 @@
 
 #include <cstring>
 
+#include "AssetDownloadConfig.h"
+
 namespace {
+// Without a download host, Settings shows no Download Languages; point at the SD Language list.
 constexpr StrId LANGUAGES_PATH[] = {StrId::STR_SETTINGS_TITLE, StrId::STR_CAT_SYSTEM, StrId::STR_SYSTEM_DEVICE,
-                                    StrId::STR_DOWNLOAD_LANGUAGES};
+                                    ASSET_DOWNLOADS_CONFIGURED ? StrId::STR_DOWNLOAD_LANGUAGES : StrId::STR_LANGUAGE};
 constexpr StrId HYPHENATION_PATH[] = {StrId::STR_SETTINGS_TITLE, StrId::STR_CAT_READER, StrId::STR_READER_PAGE_LAYOUT,
                                       StrId::STR_HYPHENATION_PACKS};
 static_assert(sizeof(LANGUAGES_PATH) / sizeof(StrId) <= RELEASE_NOTES_MAX_PATH);
@@ -33,6 +36,8 @@ bool releaseNotesNeedLanguageUpdate() {
 }
 
 bool releaseNotesOfferLanguageUpdate(const char* preferredCode, const char* activeCode, const uint16_t updateTried) {
+  // The Update would only end at "Downloads unavailable".
+  if (!ASSET_DOWNLOADS_CONFIGURED) return false;
   if (!preferredCode || !activeCode || updateTried >= RELEASE_NOTES_REVISION) return false;
   if (!std::strcmp(preferredCode, "EN") || !I18n::supportedDownload(preferredCode)) return false;
   return std::strcmp(preferredCode, activeCode) != 0 || releaseNotesNeedLanguageUpdate();

@@ -70,6 +70,21 @@ class BuildIdentityTest(unittest.TestCase):
             empty = Env(); function(empty)
             self.assertEqual(empty.defines, [])
 
+    def test_language_download_menus_need_a_download_host(self):
+        # Without a host the reader hides Download Languages and What's New's
+        # language Update, which would only say "Downloads unavailable".
+        host = '-DASSET_DOWNLOAD_BASE_URL="https://assets.example.com/"'
+        for defines, expected in (([], "false"),
+                                  (['-DASSET_DOWNLOAD_BASE_URL=""'], "false"),
+                                  ([host, '-DASSET_CATALOG_BASE_URL=""'], "false"),
+                                  ([host], "true")):
+            with self.subTest(defines=defines):
+                subprocess.run(["c++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-I", str(ROOT / "src"),
+                                *defines, "-x", "c++", "-fsyntax-only", "-"],
+                               input=f'#include "AssetDownloadConfig.h"\n'
+                                     f'static_assert(ASSET_DOWNLOADS_CONFIGURED == {expected});\n',
+                               text=True, check=True, capture_output=True)
+
     def test_font_endpoint_is_opt_in_and_validated(self):
         function = MODULE["inject_download_endpoints"]
         with patch.dict(os.environ, {}, clear=True):
