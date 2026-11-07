@@ -21,6 +21,7 @@
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "Memory.h"
+#include "ReaderUtils.h"
 #include "SdCardFontSystem.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -42,9 +43,6 @@ Rect dictionaryHeaderRect(const GfxRenderer& renderer, const int contentX, const
 static constexpr char kBullet[] = "- ";
 static constexpr const char kEtymologyTreeMarker[] = "Etymology tree";
 static constexpr int kDictionarySwitchTouchHeight = 56;
-#if CROSSINK_APP_CAP_TOUCH
-static constexpr unsigned long kTouchDefinitionLookupHoldMs = 1000;
-#endif
 
 class DictionaryDefinitionActivity;
 
@@ -1156,7 +1154,7 @@ bool DictionaryDefinitionActivity::handleTouchDictionaryLookup() {
     touchDictionaryLookupHandled_ = false;
     return false;
   }
-  if (touchDictionaryLookupHandled_ || heldMs < kTouchDefinitionLookupHoldMs) {
+  if (touchDictionaryLookupHandled_ || !ReaderUtils::touchHoldOpensWordSelection(heldMs)) {
     return false;
   }
   touchDictionaryLookupHandled_ = true;

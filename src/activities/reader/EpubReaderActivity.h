@@ -27,6 +27,7 @@
 #include "PluginReaderEvents.h"
 #include "ReaderButtonShortcuts.h"
 #include "ReaderProgressSaveDebouncer.h"
+#include "ReaderTextTouchBands.h"
 #include "ReadingSessionJournal.h"
 #include "ReadingSessionStats.h"
 #include "StableReadingPace.h"
@@ -324,6 +325,8 @@ class EpubReaderActivity final : public Activity {
 #if CROSSINK_APP_CAP_TOUCH
   ReaderPinchGesture pinchFontGesture;
   FootnoteLinkTargets currentPageFootnoteTouchTargets{};
+  // Where the rendered page has text, so a hold elsewhere skips opening word selection.
+  ReaderTextTouchBands currentPageTextTouchBands;
 #endif
   using SavedPosition = EpubLinkReturnState::Position;
   static constexpr int MAX_FOOTNOTE_DEPTH = EpubLinkReturnState::MAX_DEPTH;

@@ -59,9 +59,9 @@ The **Look Up Word** option in the reader menu is only visible when a dictionary
 
 ### Touchscreen
 
-In an EPUB reader with **Touch Reader Controls** enabled, touch and hold a
-word for about one second. CrossRose opens word selection on that word; lift
-your finger to show the floating **Look Up** and **Clip** toolbar.
+In an EPUB reader, touch and hold a word. After the hold delay (one second by
+default), CrossRose opens word selection on that word; lift your finger to show
+the floating **Look Up** and **Clip** toolbar.
 Drag either selection handle to adjust the highlighted range. To select a phrase,
 keep holding after selection opens, drag to the last word, then lift your
 finger. Hold on the page's final word for about one second to continue onto
@@ -70,10 +70,19 @@ is available without a dictionary; **Look Up** is disabled until one is active.
 The toolbar sits near the selection and hides while you drag. Press **Back** to clear the range,
 or tap outside the selection and toolbar to return to reading.
 
-From a definition, touch and hold a word for about one second to start another
+From a definition, touch and hold a word for the same delay to start another
 lookup. Keep holding and drag to select a phrase, then lift your finger to look
 it up. Once word selection is open, touching a word starts the range
 immediately.
+
+To change the delay, open **Settings > Reader > Hold to Select Delay** and
+choose 500 to 1000 ms. A shorter delay opens word selection sooner, but a
+finger resting before a slow swipe is more likely to start a selection instead
+of turning the page. Holding away from the text, such as on a margin or an
+image, does not open word selection, so a slow tap there still turns the page.
+Close to a line of text, a hold can still open word selection. The delay does
+not change the one-second hold on a page's final word that continues a
+selection.
 
 ### Quick Lookup
 

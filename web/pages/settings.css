@@ -97,6 +97,10 @@ h2 {
 .setting-control input[type="number"] {
       width: 80px;
     }
+.setting-control .value-unit {
+      margin: 0 6px;
+      color: var(--label-color);
+    }
 /* Toggle switch */
     .toggle-switch {
       display: inline-block;

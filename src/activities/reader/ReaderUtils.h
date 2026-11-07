@@ -214,6 +214,10 @@ inline bool isTopStatusBarTap(const GfxRenderer& renderer, const int y, const in
                                                statusBarHeight);
 }
 
+// Settings > Reader > Hold to Select Delay: how long a stationary touch must last before word
+// selection opens. The reading page and the definition screen share it so they cannot drift apart.
+inline bool touchHoldOpensWordSelection(const unsigned long heldMs) { return heldMs >= SETTINGS.holdToSelectDelayMs; }
+
 // Reader menu opens on its board-specific vertical swipe anywhere on the open
 // page, or a long press of the capacitive home key (a short home tap still goes home).
 inline bool isTouchMenuGesture(const MappedInputManager& input) {

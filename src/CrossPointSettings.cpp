@@ -24,6 +24,7 @@
 #include "I18nKeys.h"
 #include "QuickActions.h"
 #include "SettingsList.h"
+#include "components/SliderValue.h"
 #include "fontIds.h"
 #include "util/FrontlightSchedule.h"
 #include "util/PluginLocations.h"
@@ -464,6 +465,13 @@ uint16_t CrossPointSettings::getReadingIdleTimeThresholdSeconds() const {
   return readingIdleTimeThresholdSecondsForUnits(readingIdleTimeThresholdUnits);
 }
 
+uint16_t CrossPointSettings::normalizeHoldToSelectDelayMs(const uint32_t ms) {
+  // Cap before narrowing to int; snapSliderTapValue clamps the rest.
+  const int candidate = static_cast<int>(std::min<uint32_t>(ms, MAX_HOLD_TO_SELECT_DELAY_MS));
+  return static_cast<uint16_t>(snapSliderTapValue(candidate, MIN_HOLD_TO_SELECT_DELAY_MS, MAX_HOLD_TO_SELECT_DELAY_MS,
+                                                  HOLD_TO_SELECT_DELAY_STEP_MS));
+}
+
 void CrossPointSettings::toJson(JsonDocument& doc) const {
   std::lock_guard<std::mutex> lock(_mutex);
   for (const auto& info : getBaseSettingsList()) {
@@ -513,6 +521,11 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
   doc["libraryShowTxt"] = libraryShowTxt;
   doc["libraryShowMarkdown"] = libraryShowMarkdown;
   doc["libraryHideFinishedBooks"] = libraryHideFinishedBooks;
+#if !CROSSINK_APP_CAP_TOUCH
+  // Button-only builds compile Hold to Select Delay out of the settings catalog. Carry the stored
+  // value through anyway, so an SD card moved back to a touch device keeps the user's choice.
+  doc["holdToSelectDelayMs"] = holdToSelectDelayMs;
+#endif
 
   doc["disablePageTurnGestures"] = disablePageTurnGestures;
   doc["frontButtonBack"] = frontButtonBack;
@@ -610,7 +623,11 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
       const uint16_t fieldDefault = this->*(info.value16Ptr);
       uint16_t value = doc[info.key] | fieldDefault;
       if (info.type == SettingType::VALUE) {
-        value = std::clamp(value, info.valueRange.min, info.valueRange.max);
+        // Same clamp-and-snap as the web settings POST, so a hand-edited or older file loads
+        // the value the device UI shows, and the corrected value is written back.
+        const uint16_t snapped = snappedValue16(info, value);
+        if (snapped != value) needsResave = true;
+        value = snapped;
       }
       this->*(info.value16Ptr) = value;
       continue;
@@ -758,6 +775,10 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
   readLibraryChoice("libraryShowTxt", libraryShowTxt, 2);
   readLibraryChoice("libraryShowMarkdown", libraryShowMarkdown, 2);
   readLibraryChoice("libraryHideFinishedBooks", libraryHideFinishedBooks, 2);
+#if !CROSSINK_APP_CAP_TOUCH
+  // Pass-through only (see toJson); touch builds validate it through the settings catalog.
+  holdToSelectDelayMs = doc["holdToSelectDelayMs"] | holdToSelectDelayMs;
+#endif
 
   // Only the generic-file fallback imports CrossPoint's combined touch mode.
   // Explicit CrossInk gesture keys identify a CrossInk document, even at the old path.

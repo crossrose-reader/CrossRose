@@ -49,9 +49,16 @@ let allSettings = [];
       const value = wordSpacing && setting.value > 4 ? 4 - setting.value : setting.value;
       const minimum = wordSpacing ? -4 : setting.min;
       const maximum = wordSpacing ? 4 : setting.max;
-      return '<input type="number" id="' + id + '" value="' + value + '"' +
+      const input = '<input type="number" id="' + id + '" value="' + value + '"' +
         ' min="' + minimum + '" max="' + maximum + '" step="' + setting.step + '"' +
         ' onchange="handleSettingChanged(\'' + setting.key + '\')">';
+      // A translated printf-style format such as "%u ms" places the unit around the number.
+      const format = typeof setting.format === 'string' ? setting.format.split('%u') : null;
+      if (!format || format.length !== 2) return input;
+      const affix = function(text) {
+        return text.trim() ? '<span class="value-unit">' + escapeHtml(text.trim()) + '</span>' : '';
+      };
+      return affix(format[0]) + input + affix(format[1]);
     }
 
     if (setting.type === 'string') {
@@ -303,7 +310,17 @@ let allSettings = [];
       for (const key in changes) {
         originalValues[key] = changes[key];
       }
-      if (Object.prototype.hasOwnProperty.call(changes, 'trackReadingStats')) {
+      // Re-read what the device stored when it may differ from what was typed: it snaps stepped
+      // numbers (617 ms is saved as 600 ms) and ignores out-of-range ones. Track Reading Stats
+      // changes which settings are listed.
+      const savedNumberMayDiffer = Object.keys(changes).some(function(key) {
+        const setting = findSetting(key);
+        if (!setting || setting.type !== 'value') return false;
+        const value = changes[key];
+        return !Number.isFinite(value) || value < setting.min || value > setting.max ||
+          (setting.step > 1 && (value - setting.min) % setting.step !== 0);
+      });
+      if (savedNumberMayDiffer || Object.prototype.hasOwnProperty.call(changes, 'trackReadingStats')) {
         await loadSettings();
       }
       updateOpdsDestinations();

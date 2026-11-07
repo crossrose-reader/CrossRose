@@ -300,6 +300,8 @@ individual global changes. **Delete Book Cache** does not reset these choices.
 
 - **Disable Touchscreen** (touch devices): Block screen-touch input while a book is open, while leaving touch available in reader menus so you can turn it back on. To disable only touch page turns, use **Next Page** and **Previous Page** in **Settings > Controls > Taps & Gestures**.
 
+- **Hold to Select Delay** (touch devices): Set how long you touch and hold a word before word selection opens, from 500 to 1000 ms in 50 ms steps (default 1000 ms). The same delay applies on the reading page and inside a definition. It does not change other holds, such as continuing a selection onto the next page. See [Dictionary](./dictionary.md#touchscreen).
+
 - **Status Bars**: Set up the bars shown while reading. Open **Settings > Reader > Status Bars**, or the Reader Menu's **Settings** tab > **Status Bars**. A preview shows the result at its reading position.
   - **Top Status Bar** and **Bottom Status Bar** (EPUB and TXT): Each has three left slots, one center slot, and three right slots. Fill a slot with any of: Clock and Date (devices with a clock), Battery, Time Left (book or chapter), Chapter Page Count (for example 5/25; it changes with font size and margins), Stable Page Numbers (needs page reference information in the EPUB; see [Stable Page Numbers](./reader-features.md#stable-page-numbers)), Book Progress Percentage, Title (book or chapter), or Empty.
   - **Battery**: Show the battery as "Icon + %" (default), "Icon Only", or "% Only".

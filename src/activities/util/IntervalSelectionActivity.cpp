@@ -178,8 +178,9 @@ void IntervalSelectionActivity::buildSliderScreen(UiApp::ScreenType& screen) {
                                       static_cast<int16_t>(std::max(0, safe.bottom() - contentBottom)), 0});
 
   char valueLabel[32] = {};
-  char minimumLabel[16] = {};
-  char maximumLabel[16] = {};
+  // Endpoints use the same formatter as the value, so they need the same room for long translations.
+  char minimumLabel[32] = {};
+  char maximumLabel[32] = {};
   formatValue(valueLabel, sizeof(valueLabel));
   formatEndpoint(minValue, minimumLabel, sizeof(minimumLabel));
   formatEndpoint(maxValue, maximumLabel, sizeof(maximumLabel));
@@ -350,7 +351,7 @@ void IntervalSelectionActivity::adjustValue(const int delta) {
 }
 
 void IntervalSelectionActivity::drawStepHintLine(const int y, const StrId labelId, const int step) {
-  char stepText[24];
+  char stepText[32];
   if (valueFormatId != StrId::STR_NONE_OPT) {
     snprintf(stepText, sizeof(stepText), I18N.get(valueFormatId), static_cast<unsigned int>(step));
   } else {

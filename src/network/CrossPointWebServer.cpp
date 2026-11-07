@@ -161,15 +161,7 @@ bool isWebSettingAvailable(const SettingInfo& setting) {
     return false;
   }
 
-  const bool isTouchSetting =
-      setting.nameId == StrId::STR_DISABLE_TOUCHSCREEN || setting.nameId == StrId::STR_NEXT_PAGE ||
-      setting.nameId == StrId::STR_PREV_PAGE || setting.nameId == StrId::STR_TAP_HIDE_STATUS_BAR ||
-      setting.nameId == StrId::STR_PINCH_FONT_RESIZE || setting.nameId == StrId::STR_TWO_FINGER_ROTATION ||
-      setting.nameId == StrId::STR_TWO_FINGER_SWIPE_UP || setting.nameId == StrId::STR_TWO_FINGER_SWIPE_DOWN ||
-      setting.nameId == StrId::STR_TWO_FINGER_SWIPE_LEFT || setting.nameId == StrId::STR_TWO_FINGER_SWIPE_RIGHT ||
-      setting.nameId == StrId::STR_LEFT_EDGE_UP || setting.nameId == StrId::STR_LEFT_EDGE_DOWN ||
-      setting.nameId == StrId::STR_RIGHT_EDGE_UP || setting.nameId == StrId::STR_RIGHT_EDGE_DOWN;
-  if (isTouchSetting && !gpio.hasTouch()) {
+  if (isTouchOnlySetting(setting.nameId) && !gpio.hasTouch()) {
     return false;
   }
 
@@ -1904,6 +1896,9 @@ void CrossPointWebServer::handleGetSettings() const {
         doc["min"] = s.valueRange.min;
         doc["max"] = s.valueRange.max;
         doc["step"] = s.valueRange.step;
+        if (const StrId formatId = settingValueFormatId(s); formatId != StrId::STR_NONE_OPT) {
+          doc["format"] = I18N.get(formatId);
+        }
         break;
       }
       case SettingType::STRING: {
@@ -2015,7 +2010,8 @@ void CrossPointWebServer::handlePostSettings() {
           if (s.valuePtr) {
             SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
           } else if (s.value16Ptr) {
-            SETTINGS.*(s.value16Ptr) = static_cast<uint16_t>(val);
+            // Snap to the setting's step so the page shows what the device uses.
+            SETTINGS.*(s.value16Ptr) = snappedValue16(s, static_cast<uint32_t>(val));
           }
           applied++;
         }

@@ -1,7 +1,44 @@
 #include "SettingsList.h"
 
+#include "components/SliderValue.h"
 #include "sync/DocumentMatching.h"
 #include "util/ImageDisplayMode.h"
+
+uint16_t snappedValue16(const SettingInfo& setting, const uint32_t value) {
+  // Cap before narrowing to int; snapSliderTapValue clamps the rest.
+  const int candidate = static_cast<int>(std::min<uint32_t>(value, setting.valueRange.max));
+  return static_cast<uint16_t>(
+      snapSliderTapValue(candidate, setting.valueRange.min, setting.valueRange.max, setting.valueRange.step));
+}
+
+bool isTouchOnlySetting(const StrId nameId) {
+  switch (nameId) {
+    case StrId::STR_DISABLE_TOUCHSCREEN:
+    case StrId::STR_HOLD_TO_SELECT_DELAY:
+    case StrId::STR_NEXT_PAGE:
+    case StrId::STR_PREV_PAGE:
+    case StrId::STR_TAP_HIDE_STATUS_BAR:
+    case StrId::STR_PINCH_FONT_RESIZE:
+    case StrId::STR_TWO_FINGER_ROTATION:
+    case StrId::STR_TWO_FINGER_SWIPE_UP:
+    case StrId::STR_TWO_FINGER_SWIPE_DOWN:
+    case StrId::STR_TWO_FINGER_SWIPE_LEFT:
+    case StrId::STR_TWO_FINGER_SWIPE_RIGHT:
+    case StrId::STR_LEFT_EDGE_UP:
+    case StrId::STR_LEFT_EDGE_DOWN:
+    case StrId::STR_RIGHT_EDGE_UP:
+    case StrId::STR_RIGHT_EDGE_DOWN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void eraseTouchOnlySettings(std::vector<SettingInfo>& settings) {
+  settings.erase(std::remove_if(settings.begin(), settings.end(),
+                                [](const SettingInfo& setting) { return isTouchOnlySetting(setting.nameId); }),
+                 settings.end());
+}
 
 const std::vector<SettingInfo>& getBaseSettingsList() {
   static const std::vector<SettingInfo> baseList = [] {
@@ -128,6 +165,14 @@ const std::vector<SettingInfo>& getBaseSettingsList() {
         "imageRendering", StrId::STR_CAT_READER));
     add(SettingInfo::Toggle(StrId::STR_DISABLE_TOUCHSCREEN, &CrossPointSettings::disableReaderTouchscreen,
                             "disableReaderTouchscreen", StrId::STR_CAT_READER));
+#if defined(CROSSINK_APP_CAP_TOUCH) && CROSSINK_APP_CAP_TOUCH
+    // Stored in real milliseconds (Value16) so JSON and the web settings page show ms.
+    add(SettingInfo::Value16(
+        StrId::STR_HOLD_TO_SELECT_DELAY, &CrossPointSettings::holdToSelectDelayMs,
+        {CrossPointSettings::MIN_HOLD_TO_SELECT_DELAY_MS, CrossPointSettings::MAX_HOLD_TO_SELECT_DELAY_MS,
+         CrossPointSettings::HOLD_TO_SELECT_DELAY_STEP_MS},
+        "holdToSelectDelayMs", StrId::STR_CAT_READER));
+#endif
     add(SettingInfo::Toggle(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacing,
                             "extraParagraphSpacing", StrId::STR_CAT_READER));
     add(SettingInfo::Toggle(StrId::STR_FORCE_PARAGRAPH_INDENTS, &CrossPointSettings::forceParagraphIndents,

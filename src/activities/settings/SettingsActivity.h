@@ -1,4 +1,5 @@
 #pragma once
+#include <AppCapabilities.h>
 #include <FreeInkApp.h>
 #include <FreeInkUIGfxRenderer.h>
 #include <I18n.h>
@@ -354,6 +355,9 @@ class SettingsActivity final : public Activity {
   void openFilenameFontPicker();
   void applyLanguage(const I18n::Option& selected);
   void openIdleTimeThresholdPicker();
+#if CROSSINK_APP_CAP_TOUCH
+  void openHoldToSelectDelayPicker();
+#endif
   void toggleCurrentSetting();
   void openSleepTimeoutPicker();
   void openLineHeightPicker();

@@ -5,6 +5,7 @@
 - Includes CrossInk 2.0.0: everything in [its v2.0.0 notes](https://github.com/uxjulia/CrossInk/blob/v2.0.0-rc/CHANGELOG.md), including Boox Picco support. The Picco file is `firmware-picco-v<version>.bin`.
 - On the Boox Picco, Check for Updates and SD Card Firmware Update are not shown, as in CrossInk: the Picco has one app slot, and an update from the reader would overwrite the running firmware. Install new versions over USB, as described in [BOOX Picco](https://github.com/crossrose-reader/CrossRose/blob/main/docs/picco.md#installation-and-updates).
 - Stable and nightly releases include `crossink-languages-<version>.zip`. Like CrossInk 2.0, the firmware has English built in; the zip holds the other menu languages and the hyphenation packs to copy to the SD card (see [Languages](https://github.com/crossrose-reader/CrossRose/blob/main/docs/languages.md)).
+- Set how long to touch and hold a word before word selection opens (500–1000 ms) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 
 ### Changed
 
@@ -12,6 +13,7 @@
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 - Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
 - The device, web portal and docs now say CrossRose instead of CrossInk: boot and sleep screens, the default device name (for example "CrossRose X4"), the Settings version line, the "CrossRose Default" render mode, crash reports, the HTTP User-Agent and the USB drive name on the Picco, X4 Pro and X4 Classic. Saved settings, reading data and sync pairing are unchanged, so you can go back to CrossInk and keep them. If your menu language is not English, the product name, the render mode name and three EPUB error messages show in English until you install the language again from this release's language zip.
+- On touchscreen devices, touching and holding away from the text, such as on a margin or an image, no longer redraws the page before the release turns it.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
 - Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
 
@@ -19,6 +21,7 @@
 
 - Check for updates shows "No update" instead of "Update failed" on test builds (nightly or built from source) when there is no stable release yet.
 - Check for updates offers the stable release to a device running a build made from source for that same version.
+- Reduce settings memory use on devices without a working tilt sensor (such as the X4 and X4 Pro), where the settings list did not reserve room for the tilt page-turn entries and doubled its allocation (about 16 KB).
 
 ## [v2.0.0] - 2026-11-04
 

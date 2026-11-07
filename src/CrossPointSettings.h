@@ -720,6 +720,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t frontlightScheduleEnabled = 0;
   uint16_t frontlightScheduleStart = 0xFFFF;
   uint16_t frontlightScheduleEnd = 0xFFFF;
+  // Touch-and-hold time before word selection (dictionary lookup / clipping) opens. Touch devices
+  // only. Every write path snaps it to the 50 ms grid inside its range, so readers use it directly.
+  uint16_t holdToSelectDelayMs = DEFAULT_HOLD_TO_SELECT_DELAY_MS;
   // Language setting (Language enum index, default 0 = EN)
   char filenameFallbackFont[64] = "";  // Folder name under /.crossink/languages/fonts; empty disables fallback.
   char languageCode[32] = "EN";        // Preferred identity survives temporary English fallback.
@@ -766,6 +769,18 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
       MIN_READING_IDLE_TIME_THRESHOLD_SECONDS / READING_IDLE_TIME_THRESHOLD_UNIT_SECONDS;
   static constexpr uint8_t MAX_READING_IDLE_TIME_THRESHOLD_UNITS =
       MAX_READING_IDLE_TIME_THRESHOLD_SECONDS / READING_IDLE_TIME_THRESHOLD_UNIT_SECONDS;
+  // The hold fires while the finger is still down, but taps and swipes fire on release. 500 ms
+  // matches the SDK's own touch long-press (TOUCH_LONG_PRESS_MS), so a slow tap, a finger resting
+  // before a swipe, or the first finger of a pinch is not mistaken for a hold. Swipes may still
+  // last up to 700 ms (TOUCH_SWIPE_MAX_MS), so delays below that trade some slow swipes for speed.
+  static constexpr uint16_t MIN_HOLD_TO_SELECT_DELAY_MS = 500;
+  static constexpr uint16_t MAX_HOLD_TO_SELECT_DELAY_MS = 1000;
+  static constexpr uint16_t HOLD_TO_SELECT_DELAY_STEP_MS = 50;
+  static constexpr uint16_t DEFAULT_HOLD_TO_SELECT_DELAY_MS = 1000;
+  static_assert(DEFAULT_HOLD_TO_SELECT_DELAY_MS >= MIN_HOLD_TO_SELECT_DELAY_MS &&
+                    DEFAULT_HOLD_TO_SELECT_DELAY_MS <= MAX_HOLD_TO_SELECT_DELAY_MS &&
+                    (DEFAULT_HOLD_TO_SELECT_DELAY_MS - MIN_HOLD_TO_SELECT_DELAY_MS) % HOLD_TO_SELECT_DELAY_STEP_MS == 0,
+                "Hold to Select Delay default must be on the 50 ms grid inside its range");
   static constexpr size_t MIN_DEVICE_NAME_LENGTH = 2;
   static constexpr size_t MAX_DEVICE_NAME_LENGTH = sizeof(deviceName) - 1;
 
@@ -826,6 +841,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   static uint8_t clampedLineHeightPercent(uint8_t value);
   static uint8_t readingIdleTimeThresholdUnitsForSeconds(uint16_t seconds);
   static uint16_t readingIdleTimeThresholdSecondsForUnits(uint8_t units);
+  // Clamps to the allowed range and rounds to the nearest 50 ms step.
+  static uint16_t normalizeHoldToSelectDelayMs(uint32_t ms);
 #ifdef SIMULATOR
   static bool verifySleepTimeoutMigrationContract();
   static bool verifySleepScreenMigrationContract();
