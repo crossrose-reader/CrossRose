@@ -166,7 +166,8 @@ jobs:
             echo "Your device will not install it from *Check for updates*. Download the"
             echo "\`.bin\` for your device below and flash it by hand."
             echo "When the next stable version comes out, *Check for updates* offers it again."
-            echo "Boox Picco: install over USB only. It has no *Check for updates*."
+            echo "Boox Picco: install over USB only. It has no *Check for updates*. Steps:"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SHA/docs/picco.md#installation-and-updates"
             echo
             echo "Menu languages other than English, and hyphenation packs, are in"
             echo "\`crossink-languages-$VERSION.zip\`. See docs/languages.md."
