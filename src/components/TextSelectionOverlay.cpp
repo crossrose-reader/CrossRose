@@ -97,6 +97,7 @@ Handle handle(const Rect safe, const Rect word, const bool onLeft, const bool is
 
 void placeActions(const GfxRenderer& renderer, Layout& layout, Rect firstWord, Rect lastWord,
                   const bool lookupAvailable) {
+  // cppcheck-suppress useStlAlgorithm
   for (auto& action : layout.actions) action = {};
   layout.bar = {};
   layout.showPointer = false;
@@ -119,6 +120,7 @@ void placeActions(const GfxRenderer& renderer, Layout& layout, Rect firstWord, R
   // Long translations shrink the segments evenly and wrap to two lines.
   int lines = 1;
   if (total > safe.width) {
+    // cppcheck-suppress useStlAlgorithm
     for (auto& width : widths) width = width * safe.width / total;
     total = safe.width;
     lines = 2;
@@ -161,6 +163,7 @@ void placeActions(const GfxRenderer& renderer, Layout& layout, Rect firstWord, R
     };
     const auto hidesHandle = [&](const int x, const int y) {
       const auto bar = makeRect(x, y, barWidth, barHeight);
+      // cppcheck-suppress useStlAlgorithm
       for (const auto* handle : {&layout.start, &layout.end}) {
         if (overlaps(bar, handle->dot) || overlaps(bar, handle->stem)) return true;
       }
@@ -221,6 +224,7 @@ void draw(const GfxRenderer& renderer, const Layout& layout, const bool showActi
   fui::GfxRendererFrame<actionCount> ui(renderer, spec.smallFontId, spec.bodyFontId, spec.titleFontId);
   const auto black = fui::Paint::solid(fui::Color::Black);
   const auto white = fui::Paint::solid(fui::Color::White);
+  // cppcheck-suppress shadowFunction
   for (const auto* handle : {&layout.start, &layout.end}) {
     if (handle->empty()) continue;
     ui.target.fill(handle->stem, black);

@@ -23,6 +23,7 @@ void BookFontSystem::close() {
         renderer_->removeFont(fontId(faces_[i].family, points));
     }
   }
+  // cppcheck-suppress useStlAlgorithm
   for (auto& face : faces_) face = Face{};
   faceCount_ = 0;
   signature_ = 0;
@@ -62,7 +63,9 @@ void BookFontSystem::open(Epub& epub, GfxRenderer& renderer) {
     face.style = style;
     face.href = FsHelpers::normalisePath(FsHelpers::decodeUriEscapes(source.href));
     for (const uint32_t value : {face.family, static_cast<uint32_t>(style)})
+      // cppcheck-suppress useStlAlgorithm
       signature_ = (signature_ ^ value) * 16777619U;
+    // cppcheck-suppress useStlAlgorithm
     for (const unsigned char c : face.href) signature_ = (signature_ ^ c) * 16777619U;
     signature_ = (signature_ ^ 0U) * 16777619U;
   }
@@ -165,6 +168,7 @@ uint32_t BookFontSystem::faceSignature(const uint32_t mask) const {
     const auto& face = faces_[i];
     for (const uint32_t value : {face.family, static_cast<uint32_t>(face.style),
                                  face.font ? face.font->fingerprint() : 0U, static_cast<uint32_t>(face.registered)})
+      // cppcheck-suppress useStlAlgorithm
       hash = (hash ^ value) * 16777619U;
   }
   return hash;

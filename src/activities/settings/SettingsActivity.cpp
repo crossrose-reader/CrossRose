@@ -770,6 +770,7 @@ void SettingsActivity::openFilenameFontPicker() {
   std::vector<OptionPopup::Note> notes;
   notes.reserve(filenameFontNames.size());
   for (const auto& family : filenameFontNames) {
+    // cppcheck-suppress useStlAlgorithm
     notes.emplace_back(family.error == FontLoadError::None ? "" : I18N.get(uiFontErrorString(family.error)),
                        family.error == FontLoadError::None ? tr(STR_FILENAME_FONT_HINT) : "");
   }
