@@ -180,7 +180,17 @@ jobs:
               git cat-file -e "$PREVIOUS_SHA^{commit}" 2>/dev/null; then
               echo "### New since the last nightly"
               echo
-              git log --no-merges --format='- %s (%h)' "$PREVIOUS_SHA..$SHA"
+              # GitHub refuses release notes over 125,000 characters, and a
+              # big merge from CrossInk brings thousands of commits. List the
+              # newest ones and link the rest.
+              LIMIT=100
+              COUNT="$(git rev-list --no-merges --count "$PREVIOUS_SHA..$SHA")"
+              git log --no-merges --format='- %s (%h)' -n "$LIMIT" "$PREVIOUS_SHA..$SHA"
+              if [ "$COUNT" -gt "$LIMIT" ]; then
+                echo
+                echo "And $((COUNT - LIMIT)) older commits, $COUNT in all:"
+                echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$PREVIOUS_SHA...$SHA"
+              fi
             else
               echo "### Latest changes"
               echo
