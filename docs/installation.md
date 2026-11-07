@@ -89,7 +89,7 @@ CrossPoint.
 3. Go to `Settings > System > SD Card Firmware Update` and navigate to the `.bin` file and update.
 
 If `SD Card Firmware Update` is not in the menu, the firmware on your reader is
-too old. Update it first with `Settings > System > Check for updates`, then try
+too old. Update it first with `Settings > System > Check for Updates`, then try
 again.
 
 ## USB Locked Devices
@@ -128,13 +128,13 @@ If you don't have pipx, install it with `brew install pipx` on macOS or
 `sudo apt install pipx` on Debian and Ubuntu. Then run `pipx ensurepath` and
 open a new terminal.
 
-Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)), then connect your device with a USB data cable.
+Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)), then connect your device with a USB data cable. The X3 and X4 Classic connect through their POGO port.
 
 Find the device port:
 
 ```sh
 # Linux
-dmesg | grep tty
+ls /dev/ttyACM*
 
 # macOS
 ls /dev/cu.*
@@ -155,8 +155,12 @@ esptool --chip esp32c3 --port /dev/cu.usbmodem2101 --baud 921600 write-flash 0x1
 esptool --chip esp32c3 --port /dev/cu.usbmodem2101 erase-region 0xe000 0x2000
 ```
 
-Replace the port and firmware path with your actual values.
+Replace the port and firmware path with your actual values. On Linux, if
+esptool says `Permission denied`, run `sudo usermod -aG dialout $USER`, then log
+out and back in.
 
 The X4 Pro and X4 Classic use an ESP32-S3 chip: write `--chip esp32s3` instead
-of `--chip esp32c3`. When the commands finish, the reader restarts into
-CrossRose by itself. Unplug the cable once it shows the Home screen.
+of `--chip esp32c3`.
+
+When the commands finish, the reader restarts into CrossRose by itself. Unplug
+the cable once it shows the Home screen or the book you were reading.
