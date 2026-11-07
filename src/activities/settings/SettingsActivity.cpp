@@ -232,7 +232,8 @@ std::string formatSettingValue(const SettingInfo& setting) {
   }
 #if CROSSINK_APP_CAP_TOUCH
   if (setting.value16Ptr == &CrossPointSettings::holdToSelectDelayMs) {
-    char valueBuffer[16];
+    // Sized for the longest translation ("%u" plus a multi-byte UTF-8 unit, e.g. Arabic).
+    char valueBuffer[32];
     formatHoldToSelectDelayValue(SETTINGS.holdToSelectDelayMs, valueBuffer, sizeof(valueBuffer));
     return valueBuffer;
   }
