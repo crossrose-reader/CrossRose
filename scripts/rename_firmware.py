@@ -8,6 +8,7 @@ Default outputs:
   .pio/build/x4-classic/firmware-x4-classic.bin
   .pio/build/sticky/firmware-sticky.bin
   .pio/build/x4-pro/firmware-x4-pro.bin
+  .pio/build/picco/firmware-picco.bin
 
 Release outputs when CROSSINK_RELEASE_VERSION is set:
   .pio/build/default/firmware-x3-x4-v<version>.bin
@@ -15,6 +16,7 @@ Release outputs when CROSSINK_RELEASE_VERSION is set:
   .pio/build/x4-classic/firmware-x4-classic-v<version>.bin
   .pio/build/sticky/firmware-sticky-v<version>.bin
   .pio/build/x4-pro/firmware-x4-pro-v<version>.bin
+  .pio/build/picco/firmware-picco-v<version>.bin
 """
 
 import os

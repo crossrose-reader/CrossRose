@@ -7,17 +7,20 @@ nav_order: 2
 
 ## Supported Devices
 
-- Xteink X3, X4
+- Xteink X3 and X4
 - Xteink X4 Classic and X4 Pro
 - Seeed Studio Sticky
-
-There is no CrossRose build for the Boox Picco yet. Do not install a file made
-for another reader on a Picco. The CrossPoint web installer would accept it,
-because it only checks the chip type.
+- Boox Picco: its install steps are different. See [BOOX Picco](./picco.md#installation-and-updates).
 
 Don't have a device yet? Get one directly from [Xteink](https://go.sjv.io/X4RGBb) or [Seeed Studio](https://www.seeedstudio.com/reTerminal-Sticky-p-6861.html?sensecap_affiliate=1Nxo3Gw&referring_service=link).
 
 Note: Your purchases using the above affiliate links help support ongoing development of Crossink.
+
+## Languages and hyphenation
+
+You can add menu languages and hyphenation packs without erasing your reader.
+Some devices keep installed packs on the SD card, so keep that card in the
+reader. See [Languages](./languages.md) for setup and recovery.
 
 ## Which File Do I Need?
 
@@ -39,11 +42,13 @@ Each release has one `firmware-*.bin` file per device. Download the one for your
 | Xteink X4 Classic (also called X4 V2) | Up/Down buttons on both sides, POGO port, power button on the right side | `firmware-x4-classic-*.bin` |
 | Xteink X4 Pro | Touchscreen with a front light | `firmware-x4-pro-*.bin` |
 | Seeed Studio Sticky | Sold by Seeed Studio as the reTerminal Sticky | `firmware-sticky-*.bin` |
+| Boox Picco | Sold by Boox, with a slide switch | `firmware-picco-*.bin`, installed with the [BOOX Picco](./picco.md#installation-and-updates) steps |
 
 Check the file name before you install. A file made for another reader can
 damage it. The web installer only checks the chip type, so it cannot tell the
-X4 Pro, X4 Classic and Sticky files apart. The SD card update in CrossRose, and
-in CrossInk 1.5.1 or newer, refuses a file made for another reader.
+X4 Pro, X4 Classic, Sticky and Picco files apart. The SD card update in
+CrossRose, and in CrossInk 1.5.1 or newer, refuses a file made for another
+reader.
 
 To go back to an earlier stable version, download that version's file from the
 [releases page](https://github.com/crossrose-reader/CrossRose/releases) and
@@ -117,6 +122,8 @@ These instructions are for macOS and Linux, on the X3, X4, X4 Pro and X4
 Classic. Windows users and Sticky owners should use the
 [web installer](#web-installation-via-usb). On the Sticky, the first install
 also replaces the bootloader and partition table, which these commands do not do.
+
+Boox Picco: the steps are different. See [BOOX Picco](./picco.md#installation-and-updates).
 
 Install `esptool` 5 or newer with [pipx](https://pipx.pypa.io/):
 

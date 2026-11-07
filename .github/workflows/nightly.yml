@@ -118,9 +118,43 @@ jobs:
       version: ${{ needs.check.outputs.version }}
       artifact-prefix: nightly-firmware
 
+  languages:
+    # The firmware builds in English only. Other menu languages and the
+    # hyphenation packs install from this zip (docs/languages.md). Packaging
+    # runs repository Python, so it happens here, read-only, and the publish
+    # job only uploads the zip.
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Package the SD language files
+        run: |
+          set -euo pipefail
+          python3 scripts/package_languages.py \
+            --version "$VERSION" \
+            --source-commit "$SHA" --status release-build \
+            --output "nightly-languages/crossink-languages-$VERSION.zip"
+
+      - name: Upload the language zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-languages
+          path: nightly-languages/crossink-languages-${{ needs.check.outputs.version }}.zip
+          if-no-files-found: error
+
   publish:
-    # Skipped when the build was skipped or failed.
-    needs: [check, build]
+    # Skipped when the build or the language zip was skipped or failed.
+    needs: [check, build, languages]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -146,6 +180,16 @@ jobs:
           merge-multiple: true
           path: nightly-firmware
 
+      - name: Download the language zip
+        uses: actions/download-artifact@v7
+        with:
+          name: nightly-languages
+          path: nightly-firmware
+
+      - name: Check the language zip is there
+        # The Nightly release must not change without it.
+        run: test -f "nightly-firmware/crossink-languages-$VERSION.zip"
+
       - name: Write release notes
         run: |
           set -euo pipefail
@@ -156,6 +200,12 @@ jobs:
             echo "Your device will not install it from *Check for updates*. Download the"
             echo "\`.bin\` for your device below and flash it by hand."
             echo "When the next stable version comes out, *Check for updates* offers it again."
+            echo "Boox Picco: install over USB only. It has no *Check for updates*. Steps:"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SHA/docs/picco.md#installation-and-updates"
+            echo
+            echo "Menu languages other than English, and hyphenation packs, are in"
+            echo "\`crossink-languages-$VERSION.zip\`. See"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SHA/docs/languages.md"
             echo
             echo "- Version: \`$VERSION\`"
             echo "- Commit: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
@@ -166,7 +216,17 @@ jobs:
               git cat-file -e "$PREVIOUS_SHA^{commit}" 2>/dev/null; then
               echo "### New since the last nightly"
               echo
-              git log --no-merges --format='- %s (%h)' "$PREVIOUS_SHA..$SHA"
+              # GitHub refuses release notes over 125,000 characters, and a
+              # big merge from CrossInk brings thousands of commits. List the
+              # newest ones and link the rest.
+              LIMIT=100
+              COUNT="$(git rev-list --no-merges --count "$PREVIOUS_SHA..$SHA")"
+              git log --no-merges --format='- %s (%h)' -n "$LIMIT" "$PREVIOUS_SHA..$SHA"
+              if [ "$COUNT" -gt "$LIMIT" ]; then
+                echo
+                echo "And $((COUNT - LIMIT)) older commits, $COUNT in all:"
+                echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$PREVIOUS_SHA...$SHA"
+              fi
             else
               echo "### Latest changes"
               echo
@@ -199,7 +259,7 @@ jobs:
 
           if gh release view nightly --repo "$REPO" --json assets --jq '.assets[].name' > old-assets.txt 2> view-error.txt; then
             # 1. Add the new files (same-day re-runs replace files with the same name).
-            gh release upload nightly nightly-firmware/*.bin --repo "$REPO" --clobber
+            gh release upload nightly nightly-firmware/* --repo "$REPO" --clobber
             gh release edit nightly --repo "$REPO" \
               --title "Nightly $VERSION" \
               --notes-file nightly-notes.md \
@@ -221,7 +281,7 @@ jobs:
                 # already downloaded, so the gap is a few seconds.
                 echo "::warning::Could not move the nightly tag. Making the Nightly release again."
                 gh release delete nightly --repo "$REPO" --cleanup-tag --yes
-                gh release create nightly nightly-firmware/*.bin \
+                gh release create nightly nightly-firmware/* \
                   --repo "$REPO" \
                   --target "$SHA" \
                   --title "Nightly $VERSION" \
@@ -238,7 +298,7 @@ jobs:
             if tag_exists; then
               gh api --silent -X DELETE "repos/$REPO/git/refs/tags/nightly"
             fi
-            gh release create nightly nightly-firmware/*.bin \
+            gh release create nightly nightly-firmware/* \
               --repo "$REPO" \
               --target "$SHA" \
               --title "Nightly $VERSION" \

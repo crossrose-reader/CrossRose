@@ -76,7 +76,7 @@ and size catalog in `lib/EpdFont/scripts/sd-fonts.yaml`, then adds the broad
 IPA, combining-mark, and reader ranges needed by dictionary definitions before
 delegating to `build-sd-fonts.py`. It packages each generated family as a ZIP.
 
-Install the font-builder dependencies and run it from the CrossInk repository
+Install the font-builder dependencies and run it from the CrossRose repository
 root:
 
 ```bash

@@ -32,6 +32,7 @@ const HIDDEN_SLUGS = new Set([
   "simulator",
   "dictionary-development",
   "file-formats",
+  "x4pro-local-testing",
 ]);
 
 const publicModules = Object.fromEntries(
@@ -58,8 +59,17 @@ function slugFromPath(path: string) {
   return slug;
 }
 
+// GitHub Pages serves the site under a sub-path (the `base` in astro.config.mjs).
+// BASE_URL holds that path; drop a trailing slash so joins stay clean.
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+/** Prefix a root path such as "/docs.html" with the site's base path. */
+export function withBase(path: string) {
+  return `${BASE}${path}`;
+}
+
 function urlFromSlug(slug: string) {
-  return `/${slug}.html`;
+  return withBase(`/${slug}.html`);
 }
 
 async function getEntries(sourceModules: typeof modules): Promise<DocEntry[]> {
@@ -93,7 +103,7 @@ export function getDocs(): Promise<DocEntry[]> {
 }
 
 export function getRoutableDocs(): Promise<DocEntry[]> {
-  return getEntries(publicModules);
+  return getEntries(modules);
 }
 
 export async function getDocBySlug(slug: string) {

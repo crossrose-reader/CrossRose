@@ -9,7 +9,7 @@
 - Xteink X4 Pro
 - Xteink X4 Classic
 - Seeed Studio Sticky
-- Boox Picco (no CrossRose build yet)
+- Boox Picco
 
 ## What's different in this fork
 
@@ -30,11 +30,12 @@ My goal with this fork is to maintain the core CrossInk firmware while integrati
 
 ### Highlights
 
+- Editable SD language files with persistent caching. See [language setup and translation instructions](docs/languages.md).
 - New reader fonts: Lexend Deca and Bitter.
 - Music notation and selected supplemental Unicode glyph support to be able to render Project Hail Mary accurately.
 - Added a custom `Minimal` theme and sleep screen option for the minimalists out there.
 - Added a custom `Dashboard` theme and sleep screen option for reading stats enthusiasts.
-- Reader font sizes: 10 pt, 12 pt, 14 pt, and 16 pt.
+- Reader font sizes: 10 to 16 pt built in on Xteink X3/X4. X4 Classic, X4 Pro, and Sticky use scalable fonts with 1 pt steps from 8 to 22 pt.
 - Added ~~strikethrough~~ support.
 - Made <u>underlines</u> thicker for better visibility.
 - Added support for `<hr>` section breaks.
@@ -50,10 +51,10 @@ My goal with this fork is to maintain the core CrossInk firmware while integrati
 - Added ability to move finished books to "Read" folder.
 - In-book menu to quickly adjust reader options without having to exit the book.
 - Reading stats: total books read, total reading time, number of sessions, pages turned, average session time, pages turned per minute. You can also set your reading stats as your sleep screen.
-- All-time reading stats [syncing](./docs/reading-stats-sync.md) between two CrossInk devices.
-- Reading [progress sync](./docs/nearby-position-sync.md) between two CrossInk devices.
+- All-time reading stats [syncing](./docs/reading-stats-sync.md) between two CrossRose or CrossInk devices.
+- Reading [progress sync](./docs/nearby-position-sync.md) between two CrossRose or CrossInk devices.
 - Added customizable Auto Page Turn Interval (anything between 5-120 seconds).
-- Added ability to view Recent Books as a 3x3 grid view.
+- A Library screen that lists every book on the SD card, with search, sorting, and a list or cover grid view for recently opened books.
 - To view a more detailed list for each version, visit the [releases](https://github.com/crossrose-reader/CrossRose/releases) page to read release notes.
 
 ---
@@ -75,7 +76,8 @@ The UI now uses [Inter](https://fonts.google.com/specimen/Inter) as the display 
 
 ### Font Sizes
 
-CrossInk includes 10 pt, 12 pt, 14 pt, and 16 pt built-in reader font sizes.
+- Xteink X3 and X4: built-in reader font sizes are 10 pt, 12 pt, 14 pt, and 16 pt.
+- X4 Classic, X4 Pro, and Sticky: Lexend Deca and Bitter are scalable, so you can pick any size from 8 pt to 22 pt in 1 pt steps.
 
 See [SD Card Fonts](./docs/sd-card-fonts.md) for installing additional font families and size ranges.
 
@@ -87,7 +89,7 @@ Reader Options, Focus Reading, Guide Dots, Force Paragraph Indents, reading stat
 
 ### Custom button actions
 
-CrossInk adds configurable button shortcuts.
+CrossRose adds configurable button shortcuts.
 
 See [Controls](./docs/controls.md) for the full action list and defaults.
 
@@ -95,7 +97,7 @@ See [Controls](./docs/controls.md) for the full action list and defaults.
 
 ## Tips for the best reading experience
 
-CrossInk runs on an ESP32-C3 with limited RAM, so very large folders or complex EPUBs can be slower than they would be on a phone, tablet, or desktop app.
+CrossRose runs on a small, low-power chip with limited memory (especially on the Xteink X3 and X4), so very large folders or complex EPUBs can be slower than they would be on a phone, tablet, or computer.
 
 - Keep folders under about 200 files. For the smoothest browsing, aim for 50-100 files per folder.
 - Having 1000+ books on the SD card is fine if they are split into smaller folders, such as by author, series, genre, or read/unread status.
@@ -103,13 +105,13 @@ CrossInk runs on an ESP32-C3 with limited RAM, so very large folders or complex 
 - Text-first EPUBs are the best fit. Large image-heavy EPUBs, scanned books, comics, and omnibus files with thousands of sections may load slowly or fail under memory pressure.
 - As a rough target, EPUBs under 20 MB tend to work the best. Files over 50 MB may still work, but they are more likely to be slow or memory-sensitive, especially if they contain many large images.
 - If an EPUB is unusually slow, try [optimizing](./docs/webserver.md#epub-optimization) it with the built-in web optimizer (via File Transfer) before copying it to the SD card: remove unused high-resolution images, split very large omnibus files, and avoid embedding multiple full font families when possible.
-- Use a reliable SD card and leave some free space. CrossInk stores settings, reading progress, cache files, stats, and generated book data on the card.
+- Use a reliable SD card and leave some free space. CrossRose stores settings, reading progress, cache files, stats, and generated book data on the card.
 
 ---
 
 ## Installation
 
-Download the `firmware-*.bin` file for your device from the [releases page](https://github.com/crossrose-reader/CrossRose/releases). Then install it over USB with the [CrossPoint web installer](https://crosspointreader.com/install) (under **Advanced options**, choose **Custom .bin**), or from the SD card with `Settings > System > SD Card Firmware Update` if your reader already runs CrossRose, CrossInk 1.2.10 or newer, or CrossPoint. Inky, CrossInk's web app, installs CrossInk only.
+Download the `firmware-*.bin` file for your device from the [releases page](https://github.com/crossrose-reader/CrossRose/releases). Then install it over USB with the [CrossPoint web installer](https://crosspointreader.com/install) (under **Advanced options**, choose **Custom .bin**), or from the SD card with `Settings > System > SD Card Firmware Update` if your reader already runs CrossRose, CrossInk 1.2.10 or newer, or CrossPoint. Inky, CrossInk's web app, installs CrossInk only. The Boox Picco installs differently: see [BOOX Picco](./docs/picco.md#installation-and-updates).
 
 | Channel | What it is | Updates |
 | --- | --- | --- |
@@ -122,13 +124,16 @@ See [Installation](./docs/installation.md) for step-by-step flashing and revert 
 
 ## Guides & Documentation
 
-Visit [https://www.crossink.dev](https://www.crossink.dev) for more user guides and additional documentation.
+Visit [https://crossrose-reader.github.io/CrossRose/](https://crossrose-reader.github.io/CrossRose/) for user guides.
+Start with the [User Guide](./docs/user-guide.md), or see [Plugins](./docs/sd-plugins.md)
+for installing and using extensions. Plugin authors can use the separate
+[Plugin Development Guide](./docs/development/plugin-development.md).
 
 ---
 
 ## Development quick start
 
-CrossInk uses PlatformIO for building and flashing firmware. See [Getting Started](./docs/development/getting-started.md) for prerequisites, clone setup, and validation commands.
+CrossRose uses PlatformIO for building and flashing firmware. See [Getting Started](./docs/development/getting-started.md) for prerequisites, clone setup, and validation commands.
 
 ### Nix/NixOS
 
@@ -140,7 +145,7 @@ nix develop -f nix
 nix-shell nix
 ```
 
-To flash a connected ESP32-C3 device, enable PlatformIO's udev rules in your NixOS configuration:
+To flash a connected device, enable PlatformIO's udev rules in your NixOS configuration:
 
 ```nix
 services.udev.packages = with pkgs; [ platformio-core.udev ];
@@ -156,7 +161,7 @@ Connect your device to your computer via a USB cable. Before the first build, in
 git submodule update --init --recursive
 ```
 
-Then flash the firmware using the correct environment for the device. The `default` environment is for the X3/X4 devices. ESP32-S3 devices have their own named environments.
+Then flash the firmware using the correct environment for the device. The `default` environment is for the X3/X4 devices. The X4 Classic, X4 Pro, and Sticky (ESP32-S3) have their own named environments.
 
 ```sh
 pio run -e default --target upload

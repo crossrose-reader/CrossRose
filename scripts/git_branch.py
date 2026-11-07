@@ -2,9 +2,9 @@
 PlatformIO pre-build script: inject git info into version defines.
 
   default:       1.1.0-dev+<branch>  (local development builds)
-                 1.1.0-dev+<branch>-<device> (local sticky/x4-pro/x4-classic)
+                 1.1.0-dev+<branch>-<device> (local sticky/x4-pro/x4-classic/picco)
   production:    1.1.0               (when $CROSSINK_RELEASE_VERSION is set)
-                 1.1.0-<device>      (sticky/x4-pro/x4-classic; nightly CI sets
+                 1.1.0-<device>      (sticky/x4-pro/x4-classic/picco; nightly CI sets
                                       $CROSSINK_RELEASE_VERSION=1.1.0-nightly.<date>)
   test & debug:          1.2.6-<branch>+<5-char-hash>
 
@@ -137,6 +137,7 @@ def get_production_version(project_dir):
 def get_hardware_version(project_dir, pioenv):
     device_suffix = {
         'default': '', 'sticky': '-sticky', 'x4-pro': '-x4-pro', 'x4-classic': '-x4-classic',
+        'picco': '-picco',
     }[pioenv]
     if os.environ.get('CROSSINK_RELEASE_VERSION'):
         return f'{get_production_version(project_dir)}{device_suffix}'
@@ -151,18 +152,51 @@ def get_hardware_version(project_dir, pioenv):
     return f'{base_version}-dev+{branch}{device_suffix}'
 
 
+def inject_download_endpoints(env):
+    # Explicit build configuration only; never read an endpoint from SD/catalogs.
+    for variable, define, scheme in (
+        ('CROSSINK_ASSET_BASE_URL', 'ASSET_DOWNLOAD_BASE_URL', 'https'),
+        ('CROSSINK_FONT_BASE_URL', 'FONT_DOWNLOAD_BASE_URL', 'https?'),
+    ):
+        base = os.environ.get(variable, '')
+        if not base:
+            continue
+        if not re.fullmatch(scheme + r'://[A-Za-z0-9.-]+(?::[0-9]+)?/(?:[A-Za-z0-9_-]+/)*', base):
+            protocols = 'HTTP(S)' if scheme == 'https?' else 'HTTPS'
+            raise ValueError(f'{variable} must be an {protocols} prefix ending in /')
+        env.Append(CPPDEFINES=[(define, '\\\"' + base + '\\\"')])
+
+
 def inject_version(env):
+    inject_download_endpoints(env)
     project_dir = env['PROJECT_DIR']
     pioenv = env['PIOENV']
     # Keep build provenance separate from CROSSINK_VERSION: production versions
     # intentionally omit the source revision, while diagnostics need the base
     # commit and whether the compiled tree had tracked modifications.
+    # Support exports exclude branch-bearing version labels and identify the actual SDK checkout.
+    canonical_version = (
+        get_production_version(project_dir)
+        if os.environ.get('CROSSINK_RELEASE_VERSION')
+        else get_crossink_version(project_dir)
+    )
+    # A pre-release such as a nightly (0.1.0-nightly.20261201) is a build of
+    # the version in platformio.ini, and reports that, as CrossInk's RCs do.
+    if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-.+", canonical_version):
+        canonical_version = get_crossink_version(project_dir)
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", canonical_version):
+        canonical_version = "unknown"
+    sdk_sha = run_git_value(os.path.join(project_dir, "freeink-sdk"), ["rev-parse", "HEAD"], "SDK SHA")
+    if not re.fullmatch(r"[0-9a-f]{40}", sdk_sha):
+        sdk_sha = "unknown"
     scoped = [
+        ('CROSSINK_SUPPORT_VERSION', f'\\"{canonical_version}\\"'),
+        ('CROSSINK_SDK_SHA', f'\\"{sdk_sha}\\"'),
         ('CROSSINK_GIT_SHA', f'\\"{get_git_short_sha(project_dir)}\\"'),
         ('CROSSINK_GIT_DIRTY', f'\\"{get_git_dirty(project_dir)}\\"'),
     ]
 
-    if pioenv in {'default', 'sticky', 'x4-pro', 'x4-classic'}:
+    if pioenv in {'default', 'sticky', 'x4-pro', 'x4-classic', 'picco'}:
         version_string = get_hardware_version(project_dir, pioenv)
         if os.environ.get('CROSSINK_RELEASE_VERSION'):
             print(f'CrossInk production build version: {version_string}')
@@ -194,7 +228,7 @@ def inject_version(env):
         ])
         print(f'CrossInk test build version: {ci_version}{suffix}')
 
-    elif pioenv in {'x4-pro-debug', 'x4-classic-debug'}:
+    elif pioenv in {'x4-pro-debug', 'x4-classic-debug', 'picco-debug'}:
         branch = get_git_branch(project_dir)
         short_hash = get_git_short_hash(project_dir)
         ci_version = get_crossink_version(project_dir)

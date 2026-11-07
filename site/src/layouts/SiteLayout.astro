@@ -1,7 +1,7 @@
 ---
 import '../styles/site.css';
 import '@fontsource-variable/jetbrains-mono';
-import { getDocs } from '../lib/docs';
+import { getDocs, withBase } from '../lib/docs';
 
 type Props = {
   title?: string;
@@ -10,8 +10,8 @@ type Props = {
 };
 
 const docs = await getDocs();
-const { title = 'CrossInk', description = 'CrossInk firmware documentation', pageClass = '' } = Astro.props;
-const pageTitle = title === 'CrossInk' ? title : `${title} | CrossInk`;
+const { title = 'CrossRose', description = 'CrossRose firmware documentation', pageClass = '' } = Astro.props;
+const pageTitle = title === 'CrossRose' ? title : `${title} | CrossRose`;
 const currentDoc = docs.find((doc) => Astro.url.pathname === doc.url);
 ---
 
@@ -32,7 +32,7 @@ const currentDoc = docs.find((doc) => Astro.url.pathname === doc.url);
       })();
     </script>
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg?v=2")} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap" rel="stylesheet" />
@@ -40,19 +40,19 @@ const currentDoc = docs.find((doc) => Astro.url.pathname === doc.url);
   </head>
   <body class={pageClass}>
     <header class="site-header">
-      <a class="brand" href="/">
-        <img class="brand-mark" src="/logo.png" alt="" aria-hidden="true" />
+      <a class="brand" href={withBase("/")}>
+        <img class="brand-mark" src={withBase("/logo.png")} alt="" aria-hidden="true" />
         <span>
-          <strong>CrossInk</strong>
+          <strong>CrossRose</strong>
           <small>E-reader Firmware</small>
         </span>
       </a>
       <nav class="top-nav" aria-label="Primary navigation">
-        <a href="/docs.html">Docs</a>
-        <a href="/installation.html">Install</a>
-        <a href="/reader-features.html">Features</a>
+        <a href={withBase("/docs.html")}>Docs</a>
+        <a href={withBase("/installation.html")}>Install</a>
+        <a href={withBase("/reader-features.html")}>Features</a>
         <a href="https://inky.crossink.dev">Inky</a>
-        <a href="https://github.com/uxjulia/CrossInk">GitHub</a>
+        <a href="https://github.com/crossrose-reader/CrossRose">GitHub</a>
         <button type="button" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
           <svg
             class="icon-moon"
@@ -97,6 +97,11 @@ const currentDoc = docs.find((doc) => Astro.url.pathname === doc.url);
             ))
           }
         </nav>
+        <div class="sidebar-title">For developers</div>
+        <nav aria-label="Developer documentation">
+          <a class="sidebar-link" href={withBase("/development/index.html")}>Development guides</a>
+          <a class="sidebar-link" href={withBase("/development/plugin-development.html")}>Plugin Development Guide</a>
+        </nav>
       </aside>
       <main class="content">
         <details class="mobile-docs-nav">
@@ -112,6 +117,11 @@ const currentDoc = docs.find((doc) => Astro.url.pathname === doc.url);
                 </a>
               ))
             }
+          </nav>
+          <nav aria-label="Mobile developer documentation">
+            <span>For developers</span>
+            <a class="mobile-docs-link" href={withBase("/development/index.html")}>Development guides</a>
+            <a class="mobile-docs-link" href={withBase("/development/plugin-development.html")}>Plugin Development Guide</a>
           </nav>
         </details>
         <slot />

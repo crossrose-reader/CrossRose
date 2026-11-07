@@ -5,3 +5,6 @@
 # Bash scripts without the .sh extension (CONTRIBUTING.md runs clang-format-fix).
 bin/clang-format-fix text eol=lf
 bin/pio-check-ci text eol=lf
+
+# Preserve the original dictionary sources, including upstream whitespace.
+assets/hyphenation/patterns/*.tex -text -whitespace

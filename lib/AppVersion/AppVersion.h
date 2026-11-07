@@ -7,6 +7,8 @@ const char* version();
 const char* versionLabel();
 const char* userAgent();
 const char* gitSha();
+const char* supportVersion();
+const char* sdkSha();
 const char* gitDirtyFlag();
 }  // namespace AppVersion
 
@@ -16,4 +18,9 @@ const char* gitDirtyFlag();
 
 #ifndef CROSSINK_FIRMWARE_DEVICE_TYPE
 #define CROSSINK_FIRMWARE_DEVICE_TYPE "unknown"
+#endif
+
+// Set from [crossink] product_name in platformio.ini.
+#ifndef CROSSINK_PRODUCT_NAME
+#define CROSSINK_PRODUCT_NAME "CrossRose"
 #endif

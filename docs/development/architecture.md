@@ -1,6 +1,6 @@
 # Architecture Overview
 
-CrossInk is firmware for the Xteink X4 and X3, built with PlatformIO targeting the ESP32-C3 microcontroller.
+CrossRose is firmware for the Xteink X4 and X3, built with PlatformIO targeting the ESP32-C3 microcontroller.
 
 At a high level, it is firmware that uses an activity-driven application architecture loop with persistent settings/state, SD-card-first caching, and a rendering pipeline optimized for e-ink constraints.
 
@@ -148,7 +148,8 @@ Two singletons are central:
 - `src/CrossPointSettings.h` (`SETTINGS`): user preferences and behavior flags
 - `src/CrossPointState.h` (`APP_STATE`): runtime/session state such as current book and sleep context
 
-Most SD-card persistence lives under `/.crosspoint/`. See file inventory in
+SD language sources, UI fallback fonts, and hyphenation packs live under
+`/.crossink/`. Most other SD-card persistence lives under `/.crosspoint/`. See file inventory in
 `docs/data-cache.md`; for binary cache formats, see `docs/file-formats.md`.
 
 ## Networking architecture
