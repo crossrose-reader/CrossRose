@@ -267,6 +267,7 @@ inline CenteredReaderStatusBarGeometry layoutCenteredReaderStatusBarItems(
   const int available = std::max(0, rightEdge - minX);
   const int budget = std::max(0, available - (count - 1) * joinCost);
   int sum = 0;
+  // cppcheck-suppress useStlAlgorithm
   for (const int w : result.widths) sum += w;
   if (sum > budget) {
     int low = 0;
@@ -274,16 +275,19 @@ inline CenteredReaderStatusBarGeometry layoutCenteredReaderStatusBarItems(
     while (low < high) {
       const int cap = low + (high - low + 1) / 2;
       int used = 0;
+      // cppcheck-suppress useStlAlgorithm
       for (const int w : result.widths) used += std::min(w, cap);
       if (used <= budget)
         low = cap;
       else
         high = cap - 1;
     }
+    // cppcheck-suppress useStlAlgorithm
     for (auto& w : result.widths) w = std::min(w, low);
   }
 
   int total = (count - 1) * joinCost;
+  // cppcheck-suppress useStlAlgorithm
   for (const int w : result.widths) total += w;
   result.totalWidth = total;
   int cursor = std::max(minX, std::min(centerX - total / 2, rightEdge - total));
