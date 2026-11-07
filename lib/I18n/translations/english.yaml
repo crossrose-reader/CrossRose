@@ -993,7 +993,7 @@ STR_LANGUAGE_PACK_OUTDATED: "Your language pack is missing or older than this fi
 STR_RELEASE_NOTES_FULL_CHANGELOG: "Full changelog"
 STR_NOTES_2_0_0_LANGUAGES_TITLE: "Languages are now downloads"
 STR_NOTES_2_0_0_LANGUAGES_BODY: "To save space, only English is built in. Other interface languages install from the internet."
-STR_NOTES_2_0_0_LANGUAGES_SD_BODY: "To save space, only English is built in. Copy other languages to the SD card from the languages zip on the release page."
+STR_NOTES_2_0_0_LANGUAGES_SD_BODY: "To save space, only English is built in. Copy other languages to the SD card from the languages zip on the CrossRose releases page."
 STR_NOTES_2_0_0_HYPHENATION_TITLE: "Hyphenation, where available"
 STR_NOTES_2_0_0_HYPHENATION_BODY: "If a language has a hyphenation pack, it installs with the language. English hyphenation is still built in."
 STR_NOTES_2_0_0_BOOKS_TITLE: "Books reflow on their own"
