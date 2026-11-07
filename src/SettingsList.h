@@ -640,8 +640,14 @@ inline constexpr size_t SLIDE_SWITCH_SETTINGS_COUNT = 1;
 inline constexpr size_t SLIDE_SWITCH_SETTINGS_COUNT = 0;
 #endif
 
+// getBaseSettingsList() always inserts the three tilt entries, so their preferences persist even when the
+// IMU is absent or fails its startup probe; getSettingsList() only hides them. Reserve them on every
+// device: counting them only when tilt is supported let the third insert reallocate the
+// process-lifetime list to twice its size on devices without a working IMU.
+inline constexpr size_t PERSISTED_TILT_SETTINGS_COUNT = 3;
+
 inline size_t getBaseSettingsCapacity() {
-  return BASE_SETTINGS_CAPACITY + (QuickActions::supportsTiltPageTurn() ? 3 : 0) + SLIDE_SWITCH_SETTINGS_COUNT;
+  return BASE_SETTINGS_CAPACITY + PERSISTED_TILT_SETTINGS_COUNT + SLIDE_SWITCH_SETTINGS_COUNT;
 }
 
 const std::vector<SettingInfo>& getBaseSettingsList();
