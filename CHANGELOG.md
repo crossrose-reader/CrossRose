@@ -12,7 +12,7 @@
 - First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 - Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
-- On touchscreen devices, touching and holding a margin, a blank line or an image no longer redraws the page before the release turns it.
+- On touchscreen devices, touching and holding away from the text, such as on a margin or an image, no longer redraws the page before the release turns it.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
 
 ### Fixed

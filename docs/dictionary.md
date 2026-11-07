@@ -78,9 +78,11 @@ immediately.
 To change the delay, open **Settings > Reader > Hold to Select Delay** and
 choose 500 to 1000 ms. A shorter delay opens word selection sooner, but a
 finger resting before a slow swipe is more likely to start a selection instead
-of turning the page. Holding on a margin, a blank line or an image never opens
-word selection, so a slow tap there still turns the page. The delay does not
-change the one-second hold on a page's final word that continues a selection.
+of turning the page. Holding away from the text, such as on a margin or an
+image, does not open word selection, so a slow tap there still turns the page.
+Close to a line of text, a hold can still open word selection. The delay does
+not change the one-second hold on a page's final word that continues a
+selection.
 
 ### Quick Lookup
 
