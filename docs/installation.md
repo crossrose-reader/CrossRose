@@ -26,8 +26,9 @@ CrossRose has two kinds of releases:
 - **Stable** ([latest stable release](https://github.com/crossrose-reader/CrossRose/releases/latest)): tested releases, numbered like `v0.1.0`. Version 1.0.0 will be the first big release. Pick this one if you are not sure.
 - **Nightly** ([nightly release](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly)): the newest code, built every night. For testing. It can have bugs.
 
-Until the first stable release (`v0.1.0`) comes out, the stable link shows an
-empty page. Use the nightly until then.
+Until the first stable release (`v0.1.0`) comes out, there is no stable
+firmware: the stable link opens the releases list, which shows only the
+nightly. Use the nightly until then.
 
 Each release has one `firmware-*.bin` file per device. Download the one for your device:
 
@@ -157,5 +158,5 @@ esptool --chip esp32c3 --port /dev/cu.usbmodem2101 erase-region 0xe000 0x2000
 Replace the port and firmware path with your actual values.
 
 The X4 Pro and X4 Classic use an ESP32-S3 chip: write `--chip esp32s3` instead
-of `--chip esp32c3`. When the commands finish, unplug the cable and hold the
-power button to start the reader.
+of `--chip esp32c3`. When the commands finish, the reader restarts into
+CrossRose by itself. Unplug the cable once it shows the Home screen.
