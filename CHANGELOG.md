@@ -12,6 +12,7 @@
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 - Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
+- Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
 
 ### Fixed
 

@@ -90,6 +90,11 @@ If a needed pack is missing, CrossInk offers once per reading session to open
 
 ### Download and install
 
+CrossRose has no download server yet, so its releases cannot download packs:
+**Install** and **Update** show how to copy the pack to SD instead. Use
+[Install from SD](#install-from-sd). The steps below are for builds made with a
+download server.
+
 1. Open **Settings > Reader > Page Layout > Hyphenation Packs**.
 2. Select a pack marked **Install**. If its file is already on SD, the reader
    installs that copy. Otherwise, follow the Wi-Fi screen to download it.
