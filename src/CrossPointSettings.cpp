@@ -1,5 +1,6 @@
 #include "CrossPointSettings.h"
 
+#include <AppVersion.h>
 #include <BoardConfig.h>
 #include <CrossInkHalFrontlight.h>
 #include <HalClock.h>
@@ -262,10 +263,10 @@ const char* CrossPointSettings::getDefaultDeviceName() {
   return "X4 Classic";
 #endif
   if (BoardConfig::isSticky()) return "Sticky";
-  if (BoardConfig::isX4Pro()) return "CrossInk X4 Pro";
-  if (gpio.deviceIsX3()) return "CrossInk X3";
-  if (gpio.deviceIsX4()) return "CrossInk X4";
-  return "CrossInk";
+  if (BoardConfig::isX4Pro()) return CROSSINK_PRODUCT_NAME " X4 Pro";
+  if (gpio.deviceIsX3()) return CROSSINK_PRODUCT_NAME " X3";
+  if (gpio.deviceIsX4()) return CROSSINK_PRODUCT_NAME " X4";
+  return CROSSINK_PRODUCT_NAME;
 }
 
 const char* CrossPointSettings::getEffectiveDeviceName() const {

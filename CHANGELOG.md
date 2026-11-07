@@ -12,8 +12,10 @@
 - First CrossRose version. Check for updates now installs CrossRose releases instead of CrossInk releases.
 - CrossRose starts its own version numbers: 0.x releases lead up to 1.0.0, the first big release.
 - Builds made from source show `-dev` in their version on every device, so they count as test builds of the next version.
+- The device, web portal and docs now say CrossRose instead of CrossInk: boot and sleep screens, the default device name (for example "CrossRose X4"), the Settings version line, the "CrossRose Default" render mode, crash reports, the HTTP User-Agent and the USB drive name on the Picco, X4 Pro and X4 Classic. Saved settings, reading data and sync pairing are unchanged, so you can go back to CrossInk and keep them. If your menu language is not English, the product name, the render mode name and three EPUB error messages show in English until you install the language again from this release's language zip.
 - On touchscreen devices, touching and holding away from the text, such as on a margin or an image, no longer redraws the page before the release turns it.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
+- Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
 
 ### Fixed
 

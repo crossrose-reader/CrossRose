@@ -1,6 +1,6 @@
 # Scalable fonts on X4 Classic, X4 Pro, and Sticky
 
-On the X4 Classic, X4 Pro, and Sticky, CrossInk's built-in fonts (Bitter and
+On the X4 Classic, X4 Pro, and Sticky, CrossRose's built-in fonts (Bitter and
 Lexend Deca) are scalable, so you can pick any size from 8 to 22 pt. You can also
 add your own static TrueType (`.ttf`) and OpenType (`.otf`) fonts. These
 readers have extra memory that makes this possible. The original X3 and X4 use
@@ -25,7 +25,7 @@ No font conversion or separate files for each size are needed.
 > collections are not.
 
 For the full range of text styles, add all four files for a family: **regular**,
-**bold**, **italic**, and **bold italic**. CrossInk can use a family with fewer
+**bold**, **italic**, and **bold italic**. CrossRose can use a family with fewer
 styles, but missing styles may appear in another available style. If the files
 are in a family folder, that folder's name appears in the font picker. Keep
 scalable fonts and `.cpfont` files in separate family folders.
@@ -41,7 +41,7 @@ them. This option appears only for custom `.ttf` and `.otf` fonts; `.cpfont`
 fonts do not use it.
 
 Custom fonts use the same **8-22 pt** size choices as the built-in fonts. Changing fonts or
-their appearance may make CrossInk lay out the current book again, so page
+their appearance may make CrossRose lay out the current book again, so page
 positions can change. Your bookmarks and clippings remain saved.
 
 ## Supported files and limits

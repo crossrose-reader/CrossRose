@@ -40,7 +40,7 @@ upload writes only `firmware.bin` to the stock application slot at `0xE0000`,
 leaving the vendor bootloader, partition table, NVS, and recovery image intact.
 Do not erase flash or install a merged factory image.
 
-The stock layout has one application slot. CrossInk therefore hides its OTA
+The stock layout has one application slot. CrossRose therefore hides its OTA
 and SD firmware-update actions on Picco and disables its recovery-flashing
 shortcut. Updates use the same external app-only installation path.
 

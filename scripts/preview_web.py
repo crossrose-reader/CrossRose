@@ -16,16 +16,21 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+import web_pages
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
 JSZIP = os.path.join(ROOT, "src", "network", "html", "js", "jszip.min.js")
 
-# slug -> (route, title, active, extra <head> markup)
+PRODUCT = web_pages.product_name(ROOT)
+
+# slug -> (route, title, active, extra <head> markup). Titles match web_pages.pages(); the preview
+# leaves out the plugin runner page and /plugin-host.js, which it does not serve.
 PAGES = {
-    "home":     ("/",         "CrossInk",                   "home",     ""),
-    "files":    ("/files",    "Files - CrossInk",           "files",    '  <script src="/js/jszip.min.js"></script>'),
-    "settings": ("/settings", "Settings - CrossInk Reader", "settings", ""),
-    "fonts":    ("/fonts",    "Fonts - CrossInk",           "fonts",    ""),
+    "home":     ("/",         PRODUCT,                        "home",     ""),
+    "files":    ("/files",    f"Files - {PRODUCT}",           "files",    '  <script src="/js/jszip.min.js"></script>'),
+    "settings": ("/settings", f"Settings - {PRODUCT} Reader", "settings", ""),
+    "fonts":    ("/fonts",    f"Fonts - {PRODUCT}",           "fonts",    ""),
 }
 ROUTE_TO_SLUG = {route: slug for slug, (route, *_rest) in PAGES.items()}
 
@@ -37,7 +42,7 @@ def render_page(slug):
     _route, title, active, head_extra = PAGES[slug]
     js = read(WEB, "pages", f"{slug}.js").strip()
     values = {
-        "title": title, "v": "dev", "head_extra": head_extra,
+        "title": title, "product": PRODUCT, "v": "dev", "head_extra": head_extra,
         "styles": read(WEB, "pages", f"{slug}.css"),
         "body": read(WEB, "pages", f"{slug}.html"),
         "script": f"<script>\n{js}\n</script>" if js else "",
@@ -80,7 +85,7 @@ MOCK_API = {
         {"key": "quickResumeSleepScreen", "name": "Quick Resume on Timeout",
          "category": "Reading", "type": "toggle", "value": 0},
         {"key": "deviceName", "name": "Device Name", "category": "Network", "type": "string",
-         "value": "CrossInk-01"},
+         "value": f"{PRODUCT}-01"},
     ],
 }
 
@@ -128,7 +133,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"CrossInk web preview: http://localhost:{port}  (Ctrl+C to stop)")
+    print(f"{PRODUCT} web preview: http://localhost:{port}  (Ctrl+C to stop)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

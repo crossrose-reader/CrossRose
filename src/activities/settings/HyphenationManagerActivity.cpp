@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "AssetDownloadActivity.h"
+#include "AssetDownloadConfig.h"
 #include "CrossPointState.h"
 #include "HyphenationPackStore.h"
 #include "SilentRestart.h"
@@ -97,6 +98,18 @@ void HyphenationManagerActivity::select() {
   requestUpdate();
 }
 void HyphenationManagerActivity::connect() {
+  if (!ASSET_DOWNLOADS_CONFIGURED) {
+    // No download host in this build: the network restart would only reach
+    // "Downloads unavailable". Explain the SD install instead.
+    RenderLock lock(*this);
+    const StrId options[] = {StrId::STR_OK};
+    popup_.show(
+        StrId::STR_HYPHENATION_PACKS, options, 1, 0, [this](int) { pending_ = Pending::List; },
+        OptionPopup::Note(tr(STR_ASSET_UNAVAILABLE), tr(STR_HYPHENATION_SD_ONLY)));
+    popup_.setCancelCallback([this] { pending_ = Pending::List; });
+    requestUpdate();
+    return;
+  }
   APP_STATE.pendingOverlayResume.clear();
   if (APP_STATE.saveToFile() && SETTINGS.saveToFile()) {
     RenderLock restartLock(*this);

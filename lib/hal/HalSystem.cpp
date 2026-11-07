@@ -324,8 +324,8 @@ std::string getPanicInfo(bool full) {
   } else {
     std::string info;
 
-    info += std::string("CrossInk version: ") + AppVersion::version();
-    info += "\nCrossInk device type: " CROSSINK_FIRMWARE_DEVICE_TYPE;
+    info += std::string(CROSSINK_PRODUCT_NAME " version: ") + AppVersion::version();
+    info += "\n" CROSSINK_PRODUCT_NAME " device type: " CROSSINK_FIRMWARE_DEVICE_TYPE;
     char elfSha[65] = {};
     esp_app_get_elf_sha256(elfSha, sizeof(elfSha));
     info += "\nFirmware ELF SHA256: " + std::string(elfSha);

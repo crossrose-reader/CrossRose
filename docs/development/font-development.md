@@ -110,7 +110,7 @@ and [web font upload #3717](https://github.com/crosspoint-reader/crosspoint-read
 Upstream accepts the `.otf` extension but its FreeInk SDK has no CFF (OpenType
 outline) driver, so extension support alone is not full OpenType support.
 
-CrossInk's S3 builds enable the SDK's CFF driver (`FREEINK_FONT_ENABLE_CFF`), so
+CrossRose's S3 builds enable the SDK's CFF driver (`FREEINK_FONT_ENABLE_CFF`), so
 static OpenType CFF fonts really render, including CFF fonts named `.ttf`. The
 existing PSRAM feature gates, style metadata, font memory arenas, and
 content-based cache identities are kept. The font catalog version changed so old

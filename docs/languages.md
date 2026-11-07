@@ -5,9 +5,8 @@ nav_order: 11
 
 # Languages
 
-CrossInk includes English. You can download other menu languages on the reader
-or install them from your SD card. You can also edit a translation or create your
-own.
+CrossRose includes English. You can install other menu languages from your SD
+card. You can also edit a translation or create your own.
 
 Hyphenation packs help split long words at the end of a line. They follow the
 book's language, independently of your menu language.
@@ -48,7 +47,7 @@ Keep a separate copy of any translation you want to save.
 
 If you used an earlier build, move the `languages` and `hyphenation` folders
 from `.crosspoint` into `.crossink` at the SD root, including any
-`languages/fonts` families. CrossInk only reads these sources from `.crossink`.
+`languages/fonts` families. CrossRose only reads these sources from `.crossink`.
 Already installed language and hyphenation packs remain active; moving the
 source folders does not require clearing book caches or reinstalling packs.
 
@@ -85,10 +84,15 @@ English hyphenation is included. Packs are available for French, German,
 Russian, Spanish, Italian, Polish, Portuguese, Swedish, and Ukrainian.
 
 A book uses the pack for its own language, regardless of your menu language.
-If a needed pack is missing, CrossInk offers once per reading session to open
+If a needed pack is missing, CrossRose offers once per reading session to open
 **Hyphenation Packs**. You can cancel and keep reading.
 
 ### Download and install
+
+CrossRose has no download server yet, so its releases cannot download packs:
+**Install** and **Update** show how to copy the pack to SD instead. Use
+[Install from SD](#install-from-sd). The steps below are for builds made with a
+download server.
 
 1. Open **Settings > Reader > Page Layout > Hyphenation Packs**.
 2. Select a pack marked **Install**. If its file is already on SD, the reader
@@ -161,7 +165,7 @@ Some large fonts may still be too demanding to open. If the picker reports
 insufficient font memory, try a smaller or prepared static font.
 
 Keep fonts for book text in `/fonts` or `/.fonts`. A UI fallback font's first use can take
-longer than later redraws. If a font is missing or unreadable, CrossInk uses its
+longer than later redraws. If a font is missing or unreadable, CrossRose uses its
 built-in font while keeping your saved choice. After changing font files on a
 computer, select the family again or restart the reader.
 
@@ -176,7 +180,7 @@ SD. Keep this file on the card. You do not need to erase the reader to use langu
 
 The original YAML and hyphenation source files can be removed after installation,
 but a replacement SD card needs its own installed packs. If installed packs stop
-loading, CrossInk falls back to English and built-in hyphenation.
+loading, CrossRose falls back to English and built-in hyphenation.
 
 To recover a damaged installed-pack cache, remove only
 `/.crosspoint/asset-cache.bin`, then reinstall your language and hyphenation packs.

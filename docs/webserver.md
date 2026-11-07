@@ -1,6 +1,6 @@
 # Web Server Guide
 
-This guide explains how to use CrossInk's built-in web server. It lets you
+This guide explains how to use CrossRose's built-in web server. It lets you
 manage your reader from a phone, tablet, or computer browser: copy books over,
 change settings, and add fonts. No cables or SD card swapping needed.
 
@@ -39,7 +39,7 @@ web server. See [Reading Stats Sync](./reading-stats-sync.md) and
 ## Join a Network Mode
 
 1. Select **Join a Network**.
-2. If you have saved Wi-Fi credentials, CrossInk first tries the last
+2. If you have saved Wi-Fi credentials, CrossRose first tries the last
    connected network, then other visible saved networks in signal-strength
    order. Press **Back** to cancel or **Confirm** to stop auto-connect and show
    the network list.

@@ -9,7 +9,7 @@ nav_order: 5
 This guide is for plugin authors. For installation and everyday use, see the
 [Plugins user guide](../sd-plugins.md).
 
-CrossInk can load plugin interfaces in its web portal and browse declarative
+CrossRose can load plugin interfaces in its web portal and browse declarative
 plugin catalogs on the reader. JavaScript runs in the connected browser;
 `device.json` describes requests and lists that the firmware understands.
 No JavaScript engine runs on the reader.
@@ -22,7 +22,7 @@ events, and protected EPUB books with device-wrapped AES-128 or AES-256 keys.
 
 | Plugin part | Runs in | Use it for |
 | --- | --- | --- |
-| `plugin.js` | The phone/computer browser hosting CrossInk's web page | Interactive setup, account linking, custom controls, and browser action jobs |
+| `plugin.js` | The phone/computer browser hosting CrossRose's web page | Interactive setup, account linking, custom controls, and browser action jobs |
 | `device.json` with `browse` | The reader's built-in catalog screens | Browsing/searching a service and downloading books or plugin bundles |
 | `device.json` with `events` | The reader's event delivery system | Sending reading activity or fetching content in response to supported events |
 | `manifest.json` | Read by the plugin host and distribution tools | Name, title, browser placement, version, and packaging metadata |
@@ -116,7 +116,7 @@ books outside the plugin folder so uninstalling it does not delete them.
 
 ## Publish through the Plugin Hub ecosystem
 
-CrossInk uses the CrossPoint plugin ecosystem. Its catalog requests identify
+CrossRose uses the CrossPoint plugin ecosystem. Its catalog requests identify
 as `crosspoint`, API 1, with the capabilities listed under
 [Dynamic catalogs and compatibility](#dynamic-catalogs-and-compatibility).
 Do not assume newer upstream theme or wallpaper capabilities exist here.
@@ -165,7 +165,7 @@ and background-only manifests can appear in this list, but do not open a device
 catalog. Read their setup instructions in the browser or on your computer.
 
 Install plugins you trust: their browser scripts run with the web portal's
-permissions. Plugin file operations cannot access CrossInk's Wi-Fi, OPDS, or
+permissions. Plugin file operations cannot access CrossRose's Wi-Fi, OPDS, or
 KOReader credential stores, including backups and legacy Wi-Fi credentials.
 Showing hidden files does not expose those stores. Other plugin tokens and
 configuration are ordinary files on the SD card.
@@ -199,7 +199,7 @@ through remote catalog links. Network requests use the existing SecureNet TLS
 configuration; no new certificate trust policy is introduced by this feature.
 
 Replacing a book clears its cached content. Reading preferences and progress
-continue to use CrossInk's existing stores. Existing file-manager rename and move
+continue to use CrossRose's existing stores. Existing file-manager rename and move
 operations keep their reader-state migration behavior.
 
 ## Device catalog example
@@ -269,7 +269,7 @@ or `@attribute`. Optional `container_element`, `skip_self`, `resolve_urls`, and
 origin, including HTTPS and port.
 
 A flat config file can override the destination with `{"dest_dir":"/Books"}`.
-`/` selects the SD root. Filenames retain CrossInk's normal sanitation.
+`/` selects the SD root. Filenames retain CrossRose's normal sanitation.
 
 ## Sign-in
 
@@ -316,7 +316,7 @@ actions should tolerate retries. Jobs are not persisted across firmware restart.
 
 `browse.lists_url` can return an object containing a `lists` array with `title`, `url`, and optional `body`. List URLs must use the browse URL's scheme, host, and port. Put credentials in the installed manifest. Remote list URL and body templates can use pagination placeholders and must omit `{token}` and `{cfg.*}`. The response is limited to 16 KiB and the first 16 usable lists. Each list can include a `notice` with `title`, `message`, `confirm`, and `cancel`; the notice must be accepted before browsing.
 
-Catalog requests support `{firmware_family}`, `{firmware_version}`, `{plugin_api}`, and `{plugin_capabilities}`. This integration advertises the `crosspoint` catalog family, the CrossInk version, API 1, and `catalog.lists`, `catalog.notices`, `catalog.bundle_install`, `catalog.version_tracking`, and `catalog.compatibility`. It also advertises `catalog.item_details`: catalogs may map `description`, `detail_author`, `repository`, `details_url`, and `details_format` in `browse.fields`. Version-tracked catalogs default to `description`, `author`, `repository`, and `details.url`/`details.format`. Text or HTML details are limited to 8 KiB; HTML is displayed as readable text with paragraph breaks. Details page before downloading, and Back cancels without downloading. Only the current page is wrapped in memory.
+Catalog requests support `{firmware_family}`, `{firmware_version}`, `{plugin_api}`, and `{plugin_capabilities}`. This integration advertises the `crosspoint` catalog family, the CrossRose version, API 1, and `catalog.lists`, `catalog.notices`, `catalog.bundle_install`, `catalog.version_tracking`, and `catalog.compatibility`. It also advertises `catalog.item_details`: catalogs may map `description`, `detail_author`, `repository`, `details_url`, and `details_format` in `browse.fields`. Version-tracked catalogs default to `description`, `author`, `repository`, and `details.url`/`details.format`. Text or HTML details are limited to 8 KiB; HTML is displayed as readable text with paragraph breaks. Details page before downloading, and Back cancels without downloading. Only the current page is wrapped in memory.
 
 `browse.compatibility` can map `firmware_family`, `plugin_api_min`, and `requires` to JSON row fields. Missing restrictions allow a row; supplied family/API/capability restrictions must match. Filtering keeps the server's original pagination lookahead. Completed book downloads through catalogs or browser plugin APIs mark the Library for refresh. Bundles updating an existing plugin reuse its original root and preserve its configuration.
 
