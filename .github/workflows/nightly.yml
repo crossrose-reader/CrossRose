@@ -170,7 +170,8 @@ jobs:
             echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SHA/docs/picco.md#installation-and-updates"
             echo
             echo "Menu languages other than English, and hyphenation packs, are in"
-            echo "\`crossink-languages-$VERSION.zip\`. See docs/languages.md."
+            echo "\`crossink-languages-$VERSION.zip\`. See"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SHA/docs/languages.md"
             echo
             echo "- Version: \`$VERSION\`"
             echo "- Commit: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
