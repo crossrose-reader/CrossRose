@@ -75,6 +75,8 @@ bool FontInstaller::validateCpfontFile(const char* path) {
     return HalScalableFont::inspectFile(path, info);
   }
 #endif
+  // Always false when scalable fonts are built in (returned above); builds without them still need it.
+  // cppcheck-suppress knownConditionTrueFalse
   if (scalable || memcmp(magic, "CPFONT\0\0", CPFONT_MAGIC_LEN) != 0) {
     LOG_ERR("FONT", "Bad magic in: %s", path);
     return false;

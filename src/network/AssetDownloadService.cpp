@@ -487,6 +487,8 @@ Result download(const AssetCatalog::Catalog& catalog, const AssetCatalog::Entry&
         if (callbacks.progress) callbacks.progress(callbacks.context, done, total);
       },
       nullptr, "", "", options);
+  // validate() sets this through options.validationContext during the download.
+  // cppcheck-suppress knownConditionTrueFalse
   if (work->validationResult != Result::Ok) return work->validationResult;
   if (downloaded == HttpDownloader::OK) return Result::Ok;
   return failure(downloaded == HttpDownloader::ABORTED      ? Result::Cancelled
