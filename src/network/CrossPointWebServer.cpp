@@ -315,6 +315,12 @@ String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
 
+// The simulator's WebSocketsServer stand-in does not define the client limit
+// (crossink-simulator be92ada7). Use the WebSockets library's default.
+#ifndef WEBSOCKETS_SERVER_CLIENT_MAX
+#define WEBSOCKETS_SERVER_CLIENT_MAX (5)
+#endif
+
 // millis() of each client's last event, 0 for a free slot.
 uint32_t wsLastActivity[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
 
