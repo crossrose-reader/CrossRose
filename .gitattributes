@@ -2,3 +2,6 @@
 # Shell scripts must keep LF endings: with CRLF, bash fails on the first line
 # (Git Bash on Windows with core.autocrlf=true would otherwise convert them).
 *.sh text eol=lf
+# Bash scripts without the .sh extension (CONTRIBUTING.md runs clang-format-fix).
+bin/clang-format-fix text eol=lf
+bin/pio-check-ci text eol=lf
