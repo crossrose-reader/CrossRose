@@ -40,7 +40,7 @@ Each release has one `firmware-*.bin` file per device. Download the one for your
 | Xteink X4 | Up/Down buttons on the right side, USB-C port | `firmware-x3-x4-*.bin` |
 | Xteink X3 | Up/Down buttons on both sides, POGO port, power button on top | `firmware-x3-x4-*.bin` |
 | Xteink X4 Classic (also called X4 V2) | Up/Down buttons on both sides, POGO port, power button on the right side | `firmware-x4-classic-*.bin` |
-| Xteink X4 Pro | Touchscreen with a front light | `firmware-x4-pro-*.bin` |
+| Xteink X4 Pro | Sold by Xteink, with a touchscreen, a front light and a Home key | `firmware-x4-pro-*.bin` |
 | Seeed Studio Sticky | Sold by Seeed Studio as the reTerminal Sticky | `firmware-sticky-*.bin` |
 | Boox Picco | Sold by Boox, with a slide switch | `firmware-picco-*.bin`, installed with the [BOOX Picco](./picco.md#installation-and-updates) steps |
 
@@ -64,6 +64,8 @@ USB, use the CrossPoint web installer. CrossPoint is the project that CrossInk
 and CrossRose are built on. Its installer can flash a `.bin` file from your
 computer.
 
+Boox Picco: do not use the web installer. See [BOOX Picco](./picco.md#installation-and-updates).
+
 1. Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)).
 2. Open [https://crosspointreader.com/install](https://crosspointreader.com/install) in Chrome or Edge on a computer.
 3. Select your device. The X4 Classic is listed as **Xteink X4C**.
@@ -77,25 +79,37 @@ port. If it still does not show up, USB may be turned off on your device: see
 
 ## USB Drive
 
-On X4 Pro and X4 Classic, choose `Home > File Transfer > USB Drive` to expose
-the SD card to your computer. Eject the drive from the computer before
-disconnecting it; the reader restarts to Home when the drive is safely ejected
-or the cable is removed.
+On the X4 Classic, X4 Pro and Boox Picco, you can plug the reader into your
+computer and use its SD card like a USB stick. This is handy for copying books
+and fonts.
+
+1. On the reader, go to **Home > File Transfer > USB Drive**.
+2. Connect the reader to your computer with a USB cable that carries data, not only power. The X4 Classic connects through its POGO port.
+3. When you are done, eject the drive on your computer first, then unplug the cable.
+
+The reader restarts to the Home screen once the drive is ejected or the cable
+is removed.
 
 ## SD Card Firmware Update
 
 #### For updating CrossRose, or switching from CrossInk or CrossPoint to CrossRose. Can be used by USB locked devices.
 
 Use this when your reader already runs CrossRose, CrossInk 1.2.10 or newer, or
-CrossPoint.
+CrossPoint. The Boox Picco has neither this nor Check for Updates: to update a
+Picco, see [BOOX Picco](./picco.md#updates).
 
 1. Download the `firmware-*.bin` file for your device (see [Which File Do I Need?](#which-file-do-i-need)).
 2. Place the file on your SD card. You can place this file anywhere.
-3. Go to `Settings > System > SD Card Firmware Update` and navigate to the `.bin` file and update.
+3. Go to **Settings > System > SD Card Firmware Update** and navigate to the `.bin` file and update.
+4. Do not turn the reader off until the update finishes.
 
-If `SD Card Firmware Update` is not in the menu, the firmware on your reader is
-too old. Update it first with `Settings > System > Check for Updates`, then try
-again.
+If your reader already runs CrossRose, **Settings > System > Check for Updates**
+can also install the newest stable CrossRose release over Wi-Fi. It does not
+install nightly builds.
+
+If your reader is not a Picco and **SD Card Firmware Update** is not in the
+menu, the firmware on your reader is too old. Update it first with
+**Settings > System > Check for Updates**, then try again.
 
 ## USB Locked Devices
 
