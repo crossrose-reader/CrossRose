@@ -18,6 +18,7 @@
 
 - Check for updates shows "No update" instead of "Update failed" on test builds (nightly or built from source) when there is no stable release yet.
 - Check for updates offers the stable release to a device running a build made from source for that same version.
+- Reduce settings memory use on devices without a working tilt sensor (such as the X4 and X4 Pro), where the settings list did not reserve room for the tilt page-turn entries and doubled its allocation (about 16 KB).
 
 ## [v2.0.0] - 2026-11-04
 
