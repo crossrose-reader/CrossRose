@@ -48,8 +48,9 @@ source folders does not require clearing book caches or reinstalling packs.
 
 ## Install a language from SD
 
-1. Download `crossink-languages-<version>.zip` for your firmware from the
-   [releases page](https://github.com/uxjulia/CrossInk/releases).
+1. Download `crossink-languages-<version>.zip` from the same
+   [CrossRose release](https://github.com/crossrose-reader/CrossRose/releases)
+   as your firmware (the Nightly release for a nightly build).
 2. Unzip it and copy the `.crossink/languages` folder to the root of your SD
    card. You only need the language files you want. Turn on **Show hidden files**
    in your file manager if you cannot see the `.crossink` folder.
