@@ -2121,6 +2121,7 @@ class SimulatorSmokeTest {
   unsigned releaseNotesPhase = 0;
   unsigned releaseNotesWait = 0;
   unsigned releaseNotesPass = 0;
+  bool releaseNotesSwipePaged = false;
   int releaseNotesPortraitPages = 0;
   int releaseNotesPortraitWidth = 0;
   std::vector<uint8_t> releaseNotesHintStrip;
@@ -6539,7 +6540,6 @@ class SimulatorSmokeTest {
         break;
       case 14: {
         const auto& notes = currentReleaseNotes();
-        if (notes.simulatorPageCount() < 2) fail("Touch swipe check needs a multi-page What's New");
         char captureName[48];
         std::snprintf(captureName, sizeof(captureName), "release-notes-touch-orientation-%d", releaseNotesPass);
         captureStatusBarScreen(captureName);
@@ -6563,7 +6563,9 @@ class SimulatorSmokeTest {
       }
       case 15: {
         const auto& notes = currentReleaseNotes();
-        const int expectedPage = releaseNotesPass < 4 ? 0 : 1;
+        // Short notes (no download host) can fit one portrait page; a swipe then has no page to turn to.
+        const int expectedPage = releaseNotesPass < 4 || notes.simulatorPageCount() < 2 ? 0 : 1;
+        releaseNotesSwipePaged = releaseNotesSwipePaged || expectedPage == 1;
         if (notes.simulatorPage() != expectedPage)
           fail("Later touch check expected page %d, got %d", expectedPage, notes.simulatorPage());
         if (APP_STATE.releaseNotesSeen != 0) fail("Swipe from Later marked What's New seen");
@@ -6583,6 +6585,7 @@ class SimulatorSmokeTest {
           releaseNotesPhase = 13;
           break;
         }
+        if (!releaseNotesSwipePaged) fail("Touch swipe check needs a multi-page What's New in some orientation");
         releaseNotesPass = 0;
         {
           RenderLock lock;
