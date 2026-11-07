@@ -5,9 +5,8 @@ nav_order: 11
 
 # Languages
 
-CrossRose includes English. You can download other menu languages on the reader
-or install them from your SD card. You can also edit a translation or create your
-own.
+CrossRose includes English. You can install other menu languages from your SD
+card. You can also edit a translation or create your own.
 
 Hyphenation packs help split long words at the end of a line. They follow the
 book's language, independently of your menu language.

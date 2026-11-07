@@ -135,7 +135,7 @@ rerun or promoted to the newer runtime.
 
 ## Current acceptance status
 
-On macOS arm64, the pinned native and browser runtimes boot CrossRose X4 Pro.
+On macOS arm64, the pinned native and browser runtimes boot CrossInk X4 Pro.
 The native suite passes Home, synthetic EPUB opening/page-turn and a settings
 change on source `6435493600de5e54a0ab823d884b4d76591bab75`, SDK
 `fce2403b5b52042bf819e4b20b6bbcb16c9dfdaf`, using `x4-pro-debug`.
