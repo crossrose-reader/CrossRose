@@ -1,0 +1,251 @@
+# Nightly build.
+#
+# Every night this builds the newest `main` and puts the firmware on ONE
+# release page called "Nightly" (tag: `nightly`). Each new nightly replaces
+# the files of the one before, so the Releases page does not fill up.
+#
+# The nightly is marked as a pre-release. Devices never get it from
+# "Check for updates": that only looks at the newest stable release.
+# People who want to test it download the .bin by hand.
+#
+# Version names look like: 0.1.0-nightly.20261201
+#   0.1.0    = the next stable version (from platformio.ini, [crossink] version)
+#   20261201  = the date of the build (year, month, day)
+#
+# If nothing was merged into main since the last nightly, the build is skipped
+# (unless the Nightly release was deleted by hand: then it is built again).
+# You can also start it by hand: Actions > Nightly > Run workflow.
+
+name: Nightly
+
+on:
+  schedule:
+    # 02:17 UTC every day (04:17 in Israel in winter). Not on the hour,
+    # because GitHub is busiest at :00 and scheduled runs start late.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build even if main has not changed since the last nightly"
+        type: boolean
+        default: false
+
+# Read-only by default. Only the publish job, which runs no build tools,
+# can change releases and tags.
+permissions:
+  contents: read
+
+# Never run two nightlies at the same time.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Only CrossRose itself makes nightlies, not people's forks of it.
+    if: github.repository == 'crossrose-reader/CrossRose'
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.meta.outputs.should_build }}
+      version: ${{ steps.meta.outputs.version }}
+      sha: ${{ steps.meta.outputs.sha }}
+      previous_sha: ${{ steps.meta.outputs.previous_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          # All history and all tags: the `nightly` tag says what the last
+          # nightly was built from, and the v* tags say what is released.
+          # blob:none skips the contents of old files (git fetches only the
+          # ones it checks out), so this stays small as history grows.
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Decide if a new nightly is needed
+        id: meta
+        env:
+          FORCE: ${{ inputs.force }}
+          # Only reads releases (the job is read-only).
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          PREVIOUS="$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "previous_sha=$PREVIOUS" >> "$GITHUB_OUTPUT"
+
+          if [ "$SHA" = "$PREVIOUS" ] && [ "$FORCE" != "true" ]; then
+            # Deleting a release on the web page leaves its tag behind, so
+            # main looks unchanged although there is no Nightly to download.
+            if gh release view nightly --repo "$GITHUB_REPOSITORY" --json tagName > /dev/null 2> view-error.txt; then
+              echo "should_build=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::main has not changed since the last nightly (${SHA::7}). Skipping."
+              exit 0
+            elif grep -q 'release not found' view-error.txt; then
+              echo "::notice::The Nightly release is missing (deleted by hand?). Building it again."
+            else
+              cat view-error.txt >&2
+              exit 1
+            fi
+          fi
+
+          # Stops with an error if the version is missing or not like 0.1.0.
+          BASE="$(bash scripts/crossrose_version.sh ini)"
+
+          # A nightly must be named after a version that is higher than every
+          # stable release. Otherwise devices on the nightly would be offered
+          # that release as an "update", although it is older.
+          HIGHEST="$(git tag --list 'v*' | bash scripts/crossrose_version.sh highest)"
+          if [ -n "$HIGHEST" ] && ! bash scripts/crossrose_version.sh gt "$BASE" "$HIGHEST"; then
+            echo "::error::platformio.ini on main says version $BASE, but v$HIGHEST is already released. Set [crossink] version to a higher target (scripts/release.sh does this)."
+            exit 1
+          fi
+
+          VERSION="${BASE}-nightly.$(date -u +%Y%m%d)"
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Building nightly $VERSION from ${SHA::7}"
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    uses: ./.github/workflows/build-firmware.yml
+    permissions:
+      contents: read
+    with:
+      ref: ${{ needs.check.outputs.sha }}
+      version: ${{ needs.check.outputs.version }}
+      artifact-prefix: nightly-firmware
+
+  publish:
+    # Skipped when the build was skipped or failed.
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+      PREVIOUS_SHA: ${{ needs.check.outputs.previous_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          # History for the release notes (commit messages only).
+          fetch-depth: 0
+          filter: blob:none
+          # gh uses GH_TOKEN. Nothing here needs `git push`.
+          persist-credentials: false
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: nightly-firmware-*
+          merge-multiple: true
+          path: nightly-firmware
+
+      - name: Write release notes
+        run: |
+          set -euo pipefail
+          {
+            echo "**Nightly build. For testing only.**"
+            echo
+            echo "This is the newest \`main\`, built automatically. It can have bugs."
+            echo "Your device will not install it from *Check for updates*. Download the"
+            echo "\`.bin\` for your device below and flash it by hand."
+            echo "When the next stable version comes out, *Check for updates* offers it again."
+            echo
+            echo "- Version: \`$VERSION\`"
+            echo "- Commit: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
+            echo
+            # A rebuild of the same commit (forced, or after the release was
+            # deleted) has nothing new: list the latest changes instead.
+            if [ -n "$PREVIOUS_SHA" ] && [ "$PREVIOUS_SHA" != "$SHA" ] &&
+              git cat-file -e "$PREVIOUS_SHA^{commit}" 2>/dev/null; then
+              echo "### New since the last nightly"
+              echo
+              git log --no-merges --format='- %s (%h)' "$PREVIOUS_SHA..$SHA"
+            else
+              echo "### Latest changes"
+              echo
+              git log --no-merges --format='- %s (%h)' -n 20 "$SHA"
+            fi
+          } > nightly-notes.md
+          cat nightly-notes.md
+
+      - name: Update the Nightly release
+        run: |
+          set -euo pipefail
+          # The old nightly stays downloadable until the new one is complete.
+          # The `nightly` tag moves last: the check job reads it to know what
+          # the nightly was built from, so if anything here fails, the next
+          # run builds again.
+          REPO="$GITHUB_REPOSITORY"
+
+          # Succeeds if the nightly tag exists. Stops the job on any error
+          # other than "not found".
+          tag_exists() {
+            if gh api --silent "repos/$REPO/git/ref/tags/nightly" 2> tag-error.txt; then
+              return 0
+            fi
+            if grep -q 'HTTP 404' tag-error.txt; then
+              return 1
+            fi
+            cat tag-error.txt >&2
+            exit 1
+          }
+
+          if gh release view nightly --repo "$REPO" --json assets --jq '.assets[].name' > old-assets.txt 2> view-error.txt; then
+            # 1. Add the new files (same-day re-runs replace files with the same name).
+            gh release upload nightly nightly-firmware/*.bin --repo "$REPO" --clobber
+            gh release edit nightly --repo "$REPO" \
+              --title "Nightly $VERSION" \
+              --notes-file nightly-notes.md \
+              --prerelease \
+              --latest=false \
+              --draft=false
+            # 2. Remove the files of the older nightly.
+            while IFS= read -r NAME; do
+              if [ -n "$NAME" ] && [ ! -e "nightly-firmware/$NAME" ]; then
+                gh release delete-asset nightly "$NAME" --repo "$REPO" --yes
+              fi
+            done < old-assets.txt
+            # 3. Point the tag at the new commit.
+            if tag_exists; then
+              if ! gh api --silent -X PATCH "repos/$REPO/git/refs/tags/nightly" -f sha="$SHA" -F force=true; then
+                # GitHub may refuse to move a tag with this token (for example
+                # across commits that change workflow files). Then make the
+                # release again, the way that always works. The new files are
+                # already downloaded, so the gap is a few seconds.
+                echo "::warning::Could not move the nightly tag. Making the Nightly release again."
+                gh release delete nightly --repo "$REPO" --cleanup-tag --yes
+                gh release create nightly nightly-firmware/*.bin \
+                  --repo "$REPO" \
+                  --target "$SHA" \
+                  --title "Nightly $VERSION" \
+                  --notes-file nightly-notes.md \
+                  --prerelease \
+                  --latest=false
+              fi
+            else
+              gh api --silent -X POST "repos/$REPO/git/refs" -f ref=refs/tags/nightly -f sha="$SHA"
+            fi
+          elif grep -q 'release not found' view-error.txt; then
+            # No Nightly release yet (or it was deleted by hand). A tag left
+            # behind would be reused as it is, ignoring --target, so remove it.
+            if tag_exists; then
+              gh api --silent -X DELETE "repos/$REPO/git/refs/tags/nightly"
+            fi
+            gh release create nightly nightly-firmware/*.bin \
+              --repo "$REPO" \
+              --target "$SHA" \
+              --title "Nightly $VERSION" \
+              --notes-file nightly-notes.md \
+              --prerelease \
+              --latest=false
+          else
+            cat view-error.txt >&2
+            exit 1
+          fi

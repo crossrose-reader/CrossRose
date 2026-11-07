@@ -1,4 +1,6 @@
-> **This is a fork of [CrossInk Reader]([https://github.com/crosspoint-reader/crosspoint-reader](https://github.com/uxjulia/CrossInk))**
+> **This is a fork of [CrossInk Reader](https://github.com/uxjulia/CrossInk)**
+>
+> **Download:** [stable releases](https://github.com/crossrose-reader/CrossRose/releases/latest) (recommended) or the [nightly build](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly) (newest code, for testing).
 
 ### Supported Devices
 
@@ -52,7 +54,7 @@ My goal with this fork is to maintain the core CrossInk firmware while integrati
 - Reading [progress sync](./docs/nearby-position-sync.md) between two CrossInk devices.
 - Added customizable Auto Page Turn Interval (anything between 5-120 seconds).
 - Added ability to view Recent Books as a 3x3 grid view.
-- To view a more detailed list for each version, visit the [releases](https://github.com/uxjulia/CrossInk/releases) page to read release notes.
+- To view a more detailed list for each version, visit the [releases](https://github.com/crossrose-reader/CrossRose/releases) page to read release notes.
 
 ---
 
@@ -109,7 +111,12 @@ CrossInk runs on an ESP32-C3 with limited RAM, so very large folders or complex 
 
 The fastest way to install Crossink is by using Inky, Crossink's web companion app: https://inky.crossink.dev/#flash-tools
 
-Download a `firmware-*.bin` from the [releases page](https://github.com/uxjulia/CrossInk/releases), then flash it with the web installer or command line.
+Download a `firmware-*.bin` from the [releases page](https://github.com/crossrose-reader/CrossRose/releases), then flash it with the web installer or command line.
+
+| Channel | What it is | Updates |
+| --- | --- | --- |
+| **Stable** (`v0.1.0`, ...) | Tested releases. The 0.x versions lead up to 1.0.0 | Offered by *Check for updates* on the device |
+| **Nightly** | The newest code, built every night | Download and flash by hand |
 
 See [Installation](./docs/installation.md) for step-by-step flashing and revert instructions.
 
@@ -165,7 +172,9 @@ See [Testing and Debugging](./docs/development/testing-debugging.md) for serial 
 
 ## Notice on Contributions
 
-This repository does not accept pull requests. Feature requests may be opened in [discussions](https://github.com/uxjulia/CrossInk/discussions), but major features requiring ongoing support should be directed upstream to [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader).
+Pull requests are welcome. Fork this repository, make your change on a branch in your fork, and open a pull request against `crossrose-reader/CrossRose`. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the steps.
+
+Bugs go in [issues](https://github.com/crossrose-reader/CrossRose/issues). Ideas go in [discussions](https://github.com/crossrose-reader/CrossRose/discussions). Big features that need long-term support are better proposed upstream to [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader).
 
 ---
 

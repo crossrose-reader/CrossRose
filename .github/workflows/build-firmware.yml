@@ -1,0 +1,103 @@
+# Build the firmware for every device.
+#
+# Not started on its own: nightly.yml and release.yml call it, so both build
+# the same way. Each device's .bin is uploaded as an artifact named
+# <artifact-prefix>-<environment>; the calling workflow downloads them in a
+# later job of the same run and puts them on a release.
+#
+# This only reads the code. It runs third-party build tools (PlatformIO,
+# its platform scripts and packages), so it gets no write access and keeps no
+# GitHub token in .git/config.
+
+name: Build firmware
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "The commit to build (a full SHA)"
+        type: string
+        required: true
+      version:
+        description: "The version for the device and the file names, like 0.1.0 or 0.1.0-nightly.20261201"
+        type: string
+        required: true
+      artifact-prefix:
+        description: "Artifacts are named <artifact-prefix>-<environment>"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: default
+            firmware: firmware-x3-x4
+          - environment: sticky
+            firmware: firmware-sticky
+          - environment: x4-pro
+            firmware: firmware-x4-pro
+          - environment: x4-classic
+            firmware: firmware-x4-classic
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          # Do not cache PlatformIO's Python virtual environment. It is tied to
+          # the runner's Python and can become invalid when restored elsewhere.
+          path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          # One key per device: ESP32-C3 and ESP32-S3 need different toolchains,
+          # and a saved cache cannot be replaced, so a shared key keeps only one.
+          key: ${{ runner.os }}-platformio-py3.14-core6.1.19-${{ matrix.environment }}-${{ hashFiles('platformio.ini', 'platformio.local.example.ini') }}
+
+      - name: Install PlatformIO Core
+        run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+
+      - name: Pin pioarduino core inside the platform penv
+        env:
+          PIO_ENV: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          # custom_sdkconfig runs a nested `pio run` from ~/.platformio/penv.
+          # Keep that core on the same version as the outer core.
+          # See https://github.com/pioarduino/platform-espressif32/issues/529
+          pio pkg install -e "$PIO_ENV"
+          uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
+          ~/.platformio/penv/bin/pio --version
+
+      - name: Build CrossRose
+        env:
+          # The build scripts put this version on the device and in the file name.
+          CROSSINK_RELEASE_VERSION: ${{ inputs.version }}
+        run: pio run -j1 -e ${{ matrix.environment }}
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-prefix }}-${{ matrix.environment }}
+          path: .pio/build/${{ matrix.environment }}/${{ matrix.firmware }}-v${{ inputs.version }}.bin
+          if-no-files-found: error
