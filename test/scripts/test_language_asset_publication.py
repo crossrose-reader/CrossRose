@@ -423,22 +423,43 @@ class ReleaseWorkflowTest(unittest.TestCase):
     # CrossRose: CrossInk gates its drafts on a prepare-language-assets job
     # that publishes to its own asset host (RELEASE_PAT, an AWS role).
     # CrossRose has no such host. Its stable and nightly releases carry the
-    # SD language zip instead, packaged in the same job before the release is
-    # made, so a packaging failure stops the release too.
+    # SD language zip instead. Packaging runs repository Python, so a
+    # read-only `languages` job makes the zip; the publish job, which can
+    # change releases, only downloads it and checks it is there before the
+    # release is made. A packaging failure stops the release too.
     def test_releases_carry_the_language_zip_before_they_are_made(self):
-        for filename, publish_marker in (
-                ('release.yml', 'softprops/action-gh-release@'),
-                ('nightly.yml', 'gh release upload nightly nightly-firmware/*')):
+        for filename, artifact, folder, publish_marker in (
+                ('release.yml', 'release-languages', 'release-firmware', 'softprops/action-gh-release@'),
+                ('nightly.yml', 'nightly-languages', 'nightly-firmware',
+                 'gh release upload nightly nightly-firmware/*')):
             with self.subTest(workflow=filename):
-                job = self.jobs(filename)['publish']
-                package = job.find('scripts/package_languages.py')
-                publish = job.find(publish_marker)
+                jobs = self.jobs(filename)
+                languages = jobs['languages']
+                self.assertIn('permissions:\n      contents: read\n', languages)
+                self.assertNotIn('contents: write', languages)
+                package = languages.find('scripts/package_languages.py')
+                upload = languages.find('actions/upload-artifact@')
                 self.assertNotEqual(package, -1)
-                self.assertNotEqual(publish, -1)
-                self.assertLess(package, publish)
-                self.assertIn('--status release-build', job)
-                self.assertNotIn('continue-on-error:', job)
-                self.assertNotIn('always()', job)
+                self.assertLess(package, upload)
+                self.assertIn('--status release-build', languages)
+                self.assertIn(f'name: {artifact}\n', languages[upload:])
+                self.assertIn('if-no-files-found: error', languages[upload:])
+
+                publish = jobs['publish']
+                self.assertRegex(publish, r'needs: \[[^\]]*\blanguages\b[^\]]*\]')
+                # Nothing from the repository runs where releases can change.
+                self.assertNotIn('python', publish)
+                self.assertNotIn('scripts/', publish)
+                download = publish.find(f'name: {artifact}\n')
+                check = publish.find(f'test -f "{folder}/crossink-languages-$VERSION.zip"')
+                release = publish.find(publish_marker)
+                for position in (download, check, release):
+                    self.assertNotEqual(position, -1)
+                self.assertLess(download, check)
+                self.assertLess(check, release)
+                for job in (languages, publish):
+                    self.assertNotIn('continue-on-error:', job)
+                    self.assertNotIn('always()', job)
         release = self.jobs('release.yml')['publish']
         self.assertIn('draft: true', release)
         self.assertIn('release-firmware/crossink-languages-*.zip', release)

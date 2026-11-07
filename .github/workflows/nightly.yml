@@ -118,9 +118,43 @@ jobs:
       version: ${{ needs.check.outputs.version }}
       artifact-prefix: nightly-firmware
 
+  languages:
+    # The firmware builds in English only. Other menu languages and the
+    # hyphenation packs install from this zip (docs/languages.md). Packaging
+    # runs repository Python, so it happens here, read-only, and the publish
+    # job only uploads the zip.
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Package the SD language files
+        run: |
+          set -euo pipefail
+          python3 scripts/package_languages.py \
+            --version "$VERSION" \
+            --source-commit "$SHA" --status release-build \
+            --output "nightly-languages/crossink-languages-$VERSION.zip"
+
+      - name: Upload the language zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-languages
+          path: nightly-languages/crossink-languages-${{ needs.check.outputs.version }}.zip
+          if-no-files-found: error
+
   publish:
-    # Skipped when the build was skipped or failed.
-    needs: [check, build]
+    # Skipped when the build or the language zip was skipped or failed.
+    needs: [check, build, languages]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -146,15 +180,15 @@ jobs:
           merge-multiple: true
           path: nightly-firmware
 
-      - name: Package the SD language files
-        # The firmware builds in English only. Other menu languages and the
-        # hyphenation packs install from this zip (docs/languages.md).
-        run: |
-          set -euo pipefail
-          python3 scripts/package_languages.py \
-            --version "$VERSION" \
-            --source-commit "$SHA" --status release-build \
-            --output "nightly-firmware/crossink-languages-$VERSION.zip"
+      - name: Download the language zip
+        uses: actions/download-artifact@v7
+        with:
+          name: nightly-languages
+          path: nightly-firmware
+
+      - name: Check the language zip is there
+        # The Nightly release must not change without it.
+        run: test -f "nightly-firmware/crossink-languages-$VERSION.zip"
 
       - name: Write release notes
         run: |
