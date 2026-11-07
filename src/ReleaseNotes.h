@@ -33,4 +33,5 @@ bool releaseNotesNeedLanguageUpdate();
 // True when What's New should offer a one-click download of the saved UI language: it is a downloadable
 // non-English language, and it is either not the active language (for example after upgrading from firmware
 // with built-in translations) or its pack lacks the current notes. updateTried guards against offering it forever.
+// Always false in a build without a download host (ASSET_DOWNLOADS_CONFIGURED).
 bool releaseNotesOfferLanguageUpdate(const char* preferredCode, const char* activeCode, uint16_t updateTried);

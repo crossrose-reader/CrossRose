@@ -69,6 +69,8 @@ Some devices ship with USB data transfer turned off, so a computer cannot flash 
 
 These instructions are for macOS and Linux. Windows users should use the web installer.
 
+Boox Picco: the steps are different. See [BOOX Picco](./picco.md#installation-and-updates).
+
 Install `esptool`:
 
 ```sh

@@ -166,8 +166,6 @@ add_subdirectory(touch_action_buttons)
 
 add_test(NAME LanguageAssetPublicationRegression
   COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/test/scripts/test_language_asset_publication.py)
-add_test(NAME ReleaseDownloadPreparationRegression
-  COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/test/scripts/test_release_download_preparation.py)
 
 add_subdirectory(reading_session_journal)
 

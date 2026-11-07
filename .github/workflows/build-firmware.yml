@@ -96,9 +96,9 @@ jobs:
           # The build scripts put this version on the device and in the file name.
           CROSSINK_RELEASE_VERSION: ${{ inputs.version }}
           # Optional download hosts, from repository variables (Settings >
-          # Secrets and variables > Actions > Variables). Unset: language and
-          # hyphenation downloads on the reader say "Downloads unavailable",
-          # and font downloads use CrossInk's GitHub releases.
+          # Secrets and variables > Actions > Variables). Unset: the reader
+          # hides language downloads, hyphenation downloads say "Downloads
+          # unavailable", and font downloads use CrossInk's GitHub releases.
           CROSSINK_ASSET_BASE_URL: ${{ vars.CROSSINK_ASSET_BASE_URL }}
           CROSSINK_FONT_BASE_URL: ${{ vars.CROSSINK_FONT_BASE_URL }}
         run: pio run -j1 -e ${{ matrix.environment }}
