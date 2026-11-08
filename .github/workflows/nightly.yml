@@ -8,8 +8,8 @@
 # "Check for updates": that only looks at the newest stable release.
 # People who want to test it download the .bin by hand.
 #
-# Version names look like: 0.1.0-nightly.20261201
-#   0.1.0    = the next stable version (from platformio.ini, [crossink] version)
+# Version names look like: 1.0.0-nightly.20261201
+#   1.0.0    = the next stable version (from platformio.ini, [crossink] version)
 #   20261201  = the date of the build (year, month, day)
 #
 # If nothing was merged into main since the last nightly, the build is skipped
