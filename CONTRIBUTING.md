@@ -68,6 +68,6 @@ For a big feature, please open a discussion first, so nobody wastes work.
 ## Releases
 
 - **Nightly**: built every night from `main`. Your change is in the next nightly after it is merged.
-- **Stable**: numbered versions like `v0.1.0`. The 0.x versions lead up to 1.0.0,
-  the first big release. Each planned version has a milestone on GitHub that shows
-  what is planned for it.
+- **Stable**: numbered versions like `v1.0.0`. The first stable release, 1.0.0,
+  is planned for December 2026. Each planned version has a milestone on GitHub that
+  shows what is planned for it.

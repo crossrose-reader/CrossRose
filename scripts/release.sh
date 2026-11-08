@@ -3,14 +3,14 @@
 #
 # Usage: ./scripts/release.sh <version> <next-version>
 #        ./scripts/release.sh branch <MAJOR.MINOR>
-#   ./scripts/release.sh 0.1.0 0.2.0    on main
-#   ./scripts/release.sh branch 0.1     makes release/0.1, for fixes to 0.1.x
-#   ./scripts/release.sh 0.1.1 0.1.2    on release/0.1 (a fix for an older version)
+#   ./scripts/release.sh 1.0.0 1.1.0    on main
+#   ./scripts/release.sh branch 1.0     makes release/1.0, for fixes to 1.0.x
+#   ./scripts/release.sh 1.0.1 1.0.2    on release/1.0 (a fix for an older version)
 #
 # Versions are MAJOR.MINOR.PATCH ("semantic versioning"):
-#   0.2.0 -> 0.3.0  new features (MINOR goes up)
-#   0.2.0 -> 0.2.1  only bug fixes (PATCH goes up)
-#   1.0.0           the first big release; 0.x versions lead up to it
+#   1.1.0 -> 1.2.0  new features (MINOR goes up)
+#   1.1.0 -> 1.1.1  only bug fixes (PATCH goes up)
+#   1.0.0           the first stable release
 #
 # What a release does (on your computer only, nothing is pushed):
 #   1. Checks you are on main (or a release/MAJOR.MINOR branch), with no
@@ -37,8 +37,8 @@
 # Then push the branch and the tag together. The tag starts the Release
 # workflow on GitHub, which builds the firmware and makes a draft release.
 #
-# "branch 0.1" makes release/0.1 from the newest v0.1.x tag on GitHub, and
-# commits the start of the next fix version (0.1.<x+1>, with a new
+# "branch 1.0" makes release/1.0 from the newest v1.0.x tag on GitHub, and
+# commits the start of the next fix version (1.0.<x+1>, with a new
 # "## [Unreleased]" section). Push it, commit the fixes, then release.
 #
 # Works with bash 3.2 (macOS) and newer, and with BSD or GNU tools
@@ -46,8 +46,8 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <version> <next-version>   (example: $0 0.1.0 0.2.0)" >&2
-  echo "       $0 branch <MAJOR.MINOR>        (example: $0 branch 0.1)" >&2
+  echo "Usage: $0 <version> <next-version>   (example: $0 1.0.0 1.1.0)" >&2
+  echo "       $0 branch <MAJOR.MINOR>        (example: $0 branch 1.0)" >&2
   exit 1
 }
 [[ $# -eq 2 ]] || usage

@@ -1,6 +1,6 @@
 > **This is a fork of [CrossInk Reader](https://github.com/uxjulia/CrossInk)**
 >
-> **Download:** [stable releases](https://github.com/crossrose-reader/CrossRose/releases/latest) (recommended) or the [nightly build](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly) (newest code, for testing).
+> **Download:** the [nightly build](https://github.com/crossrose-reader/CrossRose/releases/tag/nightly) (newest code, for testing). The first [stable release](https://github.com/crossrose-reader/CrossRose/releases/latest), 1.0.0, is planned for December 2026.
 
 ### Supported Devices
 
@@ -115,7 +115,7 @@ Download the `firmware-*.bin` file for your device from the [releases page](http
 
 | Channel | What it is | Updates |
 | --- | --- | --- |
-| **Stable** (`v0.1.0`, ...) | Tested releases. The 0.x versions lead up to 1.0.0 | Offered by *Check for updates* on the device |
+| **Stable** (`v1.0.0`, ...) | Tested releases. The first, 1.0.0, is planned for December 2026 | Offered by *Check for Updates* on the device |
 | **Nightly** | The newest code, built every night | Download and flash by hand |
 
 See [Installation](./docs/installation.md) for step-by-step flashing and revert instructions.
