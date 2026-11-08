@@ -16,6 +16,7 @@
 - On touchscreen devices, touching and holding away from the text, such as on a margin or an image, no longer redraws the page before the release turns it.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
 - Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
+- What's New shows CrossRose's version (v1.0.0) in its header, and its Full changelog link points to CrossRose's releases page instead of CrossInk's. The notes themselves are unchanged, so if you already saw them in CrossInk 2.0, What's New does not open again.
 
 ### Fixed
 
