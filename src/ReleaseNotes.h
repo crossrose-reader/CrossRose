@@ -7,7 +7,7 @@
 
 // Bump RELEASE_NOTES_REVISION whenever the notes table below changes for a new release.
 // Everyone whose saved revision is lower (including fresh installs) sees What's New once.
-// First published notes revision (v1.6.1 had no notes).
+// First published notes revision (CrossInk v1.6.1 had no notes).
 constexpr uint16_t RELEASE_NOTES_REVISION = 1;
 // Label shown in the header. Deliberately not CROSSINK_VERSION, so a patch build keeps the notes' label.
 constexpr char RELEASE_NOTES_VERSION[] = "1.0.0";
