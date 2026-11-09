@@ -40,6 +40,13 @@ class ReleaseNotesActivity final : public Activity {
   Rect simulatorBodyRect() const { return Rect{contentX, bodyTop, contentWidth, bodyBottom - bodyTop}; }
   Rect simulatorHeaderRect() const { return headerRect(); }
   Rect simulatorActionRect(int index) const;
+  // True when wrapping cut a line short with "…", as it does to a word wider than the screen (such as a long URL).
+  bool simulatorHasCutLine() const {
+    for (const Line& line : lines) {
+      if (line.text.find("\xe2\x80\xa6") != std::string::npos) return true;
+    }
+    return false;
+  }
 #endif
 
  private:

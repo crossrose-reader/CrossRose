@@ -7,11 +7,13 @@
 
 // Bump RELEASE_NOTES_REVISION whenever the notes table below changes for a new release.
 // Everyone whose saved revision is lower (including fresh installs) sees What's New once.
-// First published notes revision (v1.6.1 had no notes).
+// First published notes revision (CrossInk v1.6.1 had no notes).
 constexpr uint16_t RELEASE_NOTES_REVISION = 1;
 // Label shown in the header. Deliberately not CROSSINK_VERSION, so a patch build keeps the notes' label.
-constexpr char RELEASE_NOTES_VERSION[] = "2.0.0";
-constexpr char RELEASE_NOTES_CHANGELOG_URL[] = "github.com/uxjulia/CrossInk/releases";
+constexpr char RELEASE_NOTES_VERSION[] = "1.0.0";
+// Shown as text, not opened. Split after a '/' so it fits a 480 px portrait screen: What's New
+// wraps only at spaces and would cut a longer word short with "...".
+constexpr char RELEASE_NOTES_CHANGELOG_URL[] = "github.com/crossrose-reader/\nCrossRose/releases";
 
 constexpr size_t RELEASE_NOTES_MAX_PATH = 5;
 

@@ -6438,6 +6438,7 @@ class SimulatorSmokeTest {
             notes->simulatorUpdateOffered())
           fail("English must offer Install Languages, not Update");
         if (notes->simulatorPageCount() < 1) fail("What's New has no pages");
+        if (notes->simulatorHasCutLine()) fail("What's New cut a line short with \"...\" in portrait");
         if (notes->simulatorPageCount() > 1) {
           addTap(mappedInputManager.menuButton(MappedInputManager::Button::Down));
           addTap(mappedInputManager.menuButton(MappedInputManager::Button::Up));
@@ -6800,6 +6801,7 @@ class SimulatorSmokeTest {
     if (notes.simulatorLayoutWidth() != width || notes.simulatorLayoutHeight() != height)
       fail("What's New pages were not rebuilt after rotation");
     if (firstPage && notes.simulatorPage() != 0) fail("What's New landscape check did not start on page 1");
+    if (firstPage && notes.simulatorHasCutLine()) fail("What's New cut a line short with \"...\" in landscape");
     const bool touch = mappedInputManager.hasTouch();
     const Rect safe = UITheme::getInstance().getScreenSafeArea(renderer, !touch, false);
     const Rect body = notes.simulatorBodyRect();
