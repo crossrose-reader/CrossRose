@@ -69,6 +69,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     PROGRESS_BAR_THIN = 0,
     PROGRESS_BAR_NORMAL = 1,
     PROGRESS_BAR_THICK = 2,
+    PROGRESS_BAR_EXTRA_THICK = 3,
+    PROGRESS_BAR_THICKEST = 4,
     STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT
   };
   enum BOOK_PERCENTAGE_FORMAT {

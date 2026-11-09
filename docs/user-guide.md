@@ -306,7 +306,7 @@ individual global changes. **Delete Book Cache** does not reset these choices.
   - **Top Status Bar** and **Bottom Status Bar** (EPUB and TXT): Each has three left slots, one center slot, and three right slots. Fill a slot with any of: Clock and Date (devices with a clock), Battery, Time Left (book or chapter), Chapter Page Count (for example 5/25; it changes with font size and margins), Stable Page Numbers (needs page reference information in the EPUB; see [Stable Page Numbers](./reader-features.md#stable-page-numbers)), Book Progress Percentage, Title (book or chapter), or Empty.
   - **Battery**: Show the battery as "Icon + %" (default), "Icon Only", or "% Only".
   - **Percentage Format**: Show book progress as `10%` (default), `10.1%`, or `10.12%`.
-  - **Progress Bar**: Hide it, or show a progress bar for the **Book** or the **Chapter**. **Progress Bar Thickness** can be Thin, Medium, or Thick.
+  - **Progress Bar**: Hide it, or show a progress bar for the **Book** or the **Chapter**. **Progress Bar Thickness** can be Thin, Medium, Thick, Extra Thick, or Thickest.
   - **Hide**: Turn a whole bar off.
   - **XTC Status Bar**: For XTC books, choose **Hide**, **Bottom**, **Top**, or **Both**.
   - **Status Bar Text Size**: **Small**, **Medium**, or **Large** for all bars.

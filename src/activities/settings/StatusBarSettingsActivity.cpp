@@ -115,6 +115,10 @@ const char* thicknessLabel(const uint8_t thickness) {
       return tr(STR_PROGRESS_BAR_THIN);
     case CrossPointSettings::PROGRESS_BAR_THICK:
       return tr(STR_PROGRESS_BAR_THICK);
+    case CrossPointSettings::PROGRESS_BAR_EXTRA_THICK:
+      return tr(STR_PROGRESS_BAR_EXTRA_THICK);
+    case CrossPointSettings::PROGRESS_BAR_THICKEST:
+      return tr(STR_PROGRESS_BAR_THICKEST);
     default:
       return tr(STR_PROGRESS_BAR_MEDIUM);
   }
@@ -394,8 +398,11 @@ void StatusBarSettingsActivity::openOptionPicker() {
     }
   } else {
     titleId = StrId::STR_PROGRESS_BAR_THICKNESS;
-    options = {tr(STR_PROGRESS_BAR_THIN), tr(STR_PROGRESS_BAR_MEDIUM), tr(STR_PROGRESS_BAR_THICK)};
-    rawValues = {0, 1, 2};
+    options = {tr(STR_PROGRESS_BAR_THIN), tr(STR_PROGRESS_BAR_MEDIUM), tr(STR_PROGRESS_BAR_THICK),
+               tr(STR_PROGRESS_BAR_EXTRA_THICK), tr(STR_PROGRESS_BAR_THICKEST)};
+    rawValues = {CrossPointSettings::PROGRESS_BAR_THIN, CrossPointSettings::PROGRESS_BAR_NORMAL,
+                 CrossPointSettings::PROGRESS_BAR_THICK, CrossPointSettings::PROGRESS_BAR_EXTRA_THICK,
+                 CrossPointSettings::PROGRESS_BAR_THICKEST};
     currentIndex = config.progressBarThickness;
   }
   optionPopup.show(titleId, options, currentIndex, [this, position, item, rawValues](const int selected) {

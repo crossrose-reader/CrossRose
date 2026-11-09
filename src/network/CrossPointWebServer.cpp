@@ -1712,8 +1712,8 @@ void CrossPointWebServer::handleGetStatusBars() const {
   addLabels("percentageFormats", {StrId::STR_PERCENTAGE_FORMAT_WHOLE, StrId::STR_PERCENTAGE_FORMAT_ONE_DECIMAL,
                                   StrId::STR_PERCENTAGE_FORMAT_TWO_DECIMALS});
   addLabels("progressModes", {StrId::STR_BOOK, StrId::STR_CHAPTER, StrId::STR_HIDE});
-  addLabels("thicknesses",
-            {StrId::STR_PROGRESS_BAR_THIN, StrId::STR_PROGRESS_BAR_MEDIUM, StrId::STR_PROGRESS_BAR_THICK});
+  addLabels("thicknesses", {StrId::STR_PROGRESS_BAR_THIN, StrId::STR_PROGRESS_BAR_MEDIUM, StrId::STR_PROGRESS_BAR_THICK,
+                            StrId::STR_PROGRESS_BAR_EXTRA_THICK, StrId::STR_PROGRESS_BAR_THICKEST});
   addLabels("hideOptions", {StrId::STR_OFF, StrId::STR_ON});
   JsonArray separators = doc["separators"].to<JsonArray>();
   for (uint8_t i = 0; i < static_cast<uint8_t>(ReaderStatusBarSeparator::Count); ++i) {
