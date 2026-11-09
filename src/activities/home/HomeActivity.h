@@ -4,7 +4,6 @@
 #include <ScreenInsets.h>
 
 #include <array>
-#include <atomic>
 #include <functional>
 #include <optional>
 #include <string>
@@ -95,23 +94,27 @@ class HomeActivity final : public Activity {
   bool carouselFramesReady = false;
 
   // Four-tone cover art (Carousel on CROSSINK_APP_CAP_GRAY_COVER_ART builds).
-  // Covers appear in black and white on a fast refresh; once Home has been
-  // idle for a moment loop() asks for one more render that redraws them in
-  // four tones. The deadline and the request cross from loop() to the render
-  // task, so both are atomic.
-  std::atomic<uint32_t> fourToneDueAtMs{0};  // 0 = not armed
-  std::atomic<bool> fourToneRequested{false};
+  // A position's artwork is drawn once into three PSRAM frames: the B/W base
+  // (gray pixels black) and the two overlay planes. Showing it again copies
+  // them instead of reading the thumbnails from SD. 3 x 48 KB per position,
+  // kept until the artwork changes or Home exits.
+  struct FourToneFrames {
+    int centerIdx = -1;  // -1 = empty
+    bool selected = false;
+    HeapByteBuffer base;
+    HeapByteBuffer lsb;
+    HeapByteBuffer msb;
+  };
+  std::array<FourToneFrames, kMaxCachedBooks> fourToneFrames;
+  uint64_t fourToneFramesKey = 0;
   // What the four-tone picture on the panel shows; a render of the same state
-  // keeps it instead of falling back to black and white.
+  // keeps it instead of repeating both refreshes.
   bool fourToneShown = false;
   int fourToneCenterIdx = -1;
   bool fourToneSelected = false;
   uint64_t fourToneKeyHash = 0;
-  // Stops retrying after the pass could not start (no PSRAM for its planes).
+  // Stops retrying after a pass could not start (no PSRAM for its frames).
   bool fourToneUnavailable = false;
-  // Artwork-only base frame of that picture: one framebuffer in PSRAM, kept
-  // so such renders skip the SD card. Freed in onExit().
-  HeapByteBuffer fourToneBaseArt;
   bool carouselFramesInverted = false;
   bool carouselWarmupPending = false;
   ScreenInsets insetsBeforeFrontlightPanel;
@@ -150,6 +153,8 @@ class HomeActivity final : public Activity {
                                  std::optional<int> protectedBookIdx = std::nullopt) const;
   void renderCarouselFrameToCurrentBuffer(int bookIdx);
   bool canShowFourToneCovers(int centerIdx) const;
+  const FourToneFrames* prepareFourToneFrames(const Rect& coverRect, int centerIdx, bool selected);
+  void invalidateFourToneFrames();
   void resetFourToneCovers();
   void renderCarouselFrame(int bookIdx, int slotIdx);
   int getHighlightedBookIndex() const;

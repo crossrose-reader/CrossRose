@@ -130,7 +130,7 @@ width (75x417) instead of 200x390 thumbnails resampled on screen, so the
 header's `sideCoverW` and `sideCoverH` hold the new size and version 6
 snapshots are rebuilt. The layout is unchanged: a `CarouselCacheHeader`
 followed by one full framebuffer of black-and-white artwork. Four-tone cover
-art is drawn from the thumbnails when Home settles and is not cached here.
+art is drawn from the thumbnails and kept in memory only, not cached here.
 
 ### Version 6
 

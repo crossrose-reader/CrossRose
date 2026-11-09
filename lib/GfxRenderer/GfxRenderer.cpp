@@ -3289,36 +3289,27 @@ bool GfxRenderer::retireGrayArtwork(const HalDisplay::RefreshMode mode) const {
   return true;
 }
 
-bool GfxRenderer::beginGrayArtwork() {
-  if (!frameBuffer || !supportsGrayArtwork()) return false;
-  // Two framebuffer-sized copies (the base frame and the gray mask) outlive
-  // this pass: the next refresh needs both to clear the gray ink. They are far
-  // too large for stack or static storage and stay allocated for reuse.
+bool GfxRenderer::displayGrayArtwork(const uint8_t* lsb, const uint8_t* msb, const HalDisplay::RefreshMode mode) {
+  if (!frameBuffer || !lsb || !msb || !supportsGrayArtwork()) return false;
+  // Copies of the base frame and the gray mask outlive this call: the next
+  // refresh needs both to clear the gray ink. They are far too large for
+  // stack or static storage and stay allocated for reuse.
   if (!grayArtwork_.base) grayArtwork_.base = makePsramByteBufferNoThrow(frameBufferSize);
   if (!grayArtwork_.mask) grayArtwork_.mask = makePsramByteBufferNoThrow(frameBufferSize);
   if (!grayArtwork_.base || !grayArtwork_.mask) {
     LOG_ERR("GFX", "No PSRAM for four-tone artwork (%u bytes x2)", static_cast<unsigned>(frameBufferSize));
     return false;
   }
-  // Retires any earlier artwork first; that step borrows both buffers.
-  displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+  // The base refresh also retires earlier artwork, which still owns the copies.
+  grayArtwork_.keepForNextRefresh = false;
+  displayGrayscaleBase(mode);
   memcpy(grayArtwork_.base.get(), frameBuffer, frameBufferSize);
-  grayArtwork_.inProgress = true;
-  return true;
-}
-
-void GfxRenderer::finishGrayArtwork() {
-  if (!grayArtwork_.inProgress) return;
-  grayArtwork_.inProgress = false;
-  // The framebuffer holds the MSB plane: every pixel that will be gray.
-  memcpy(grayArtwork_.mask.get(), frameBuffer, frameBufferSize);
-  copyGrayscaleMsbBuffers();
+  memcpy(grayArtwork_.mask.get(), msb, frameBufferSize);
+  copyGrayscalePlanes(lsb, msb);
   displayGrayBuffer();
-  setRenderMode(BW);
-  memcpy(frameBuffer, grayArtwork_.base.get(), frameBufferSize);
   cleanupGrayscaleWithFrameBuffer();
   grayArtwork_.onPanel = true;
-  grayArtwork_.keepForNextRefresh = false;
+  return true;
 }
 
 void GfxRenderer::preconditionGrayscale() const { display.preconditionGrayscale(); }

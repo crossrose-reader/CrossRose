@@ -7,7 +7,7 @@
 - Stable and nightly releases include `crossink-languages-<version>.zip`. Like CrossInk 2.0, the firmware has English built in; the zip holds the other menu languages and the hyphenation packs to copy to the SD card (see [Languages](https://github.com/crossrose-reader/CrossRose/blob/main/docs/languages.md)).
 - Set how long to touch and hold a word before word selection opens (400–1000 ms, in 100 ms steps) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 - Two thicker reader progress bars: Progress Bar Thickness for the top and bottom status bars now offers Extra Thick and Thickest after Thin, Medium and Thick, on the device and in the web settings page.
-- On the Boox Picco, Carousel's Home covers are shown in four tones (white, two grays and black) instead of black and white. Covers first appear in black and white; about half a second after you stop swiping they are redrawn in four tones, with one extra screen flash. Dark Mode keeps black-and-white covers.
+- On the Boox Picco, Carousel's Home covers are shown in four tones (white, two grays and black) instead of black and white. When the covers change, their gray parts show black for a moment before they lighten: the Picco's screen can only lighten black to gray. Dark Mode keeps black-and-white covers.
 
 ### Changed
 
