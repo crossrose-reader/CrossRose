@@ -1,5 +1,8 @@
 add_executable(BitmapResampleTest
   BitmapResampleTest.cpp
+  ThumbnailDeriverTest.cpp
+  GrayArtworkBaselineTest.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/ThumbnailDeriver.cpp
   ${REPO_ROOT}/lib/GfxRenderer/Bitmap.cpp
   ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp
 )

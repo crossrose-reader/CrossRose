@@ -80,7 +80,7 @@ struct GifBmpContext {
   std::unique_ptr<uint32_t[]> rowAccum;
   std::unique_ptr<uint32_t[]> rowCount;
   std::unique_ptr<AtkinsonDitherer> atkinsonDitherer;
-  std::unique_ptr<Atkinson1BitDitherer> atkinson1BitDitherer;
+  std::unique_ptr<ThumbnailDitherer> oneBitDitherer;
   bool success{true};
   uint32_t lastYieldMs{0};
 };
@@ -129,12 +129,12 @@ void emitOutputRow(const uint8_t* row, GifBmpContext& ctx) {
 
   if (ctx.oneBit) {
     for (int x = 0; x < ctx.dstWidth; ++x) {
-      const uint8_t bit = ctx.atkinson1BitDitherer->processPixel(row[x], x);
+      const uint8_t bit = ctx.oneBitDitherer->processPixel(row[x], x);
       const int byteIndex = x / 8;
       const int bitOffset = 7 - (x % 8);
       ctx.rowBuffer[byteIndex] |= (bit << bitOffset);
     }
-    ctx.atkinson1BitDitherer->nextRow();
+    ctx.oneBitDitherer->nextRow();
   } else {
     for (int x = 0; x < ctx.dstWidth; ++x) {
       const uint8_t gray = adjustPixel(row[x]);
@@ -345,9 +345,9 @@ bool GifToBmpConverter::gifFileToBmpStreamInternal(FsFile& gifFile, Print& bmpOu
   }
 
   if (oneBit) {
-    ctx.atkinson1BitDitherer = makeUniqueNoThrow<Atkinson1BitDitherer>(ctx.dstWidth);
-    if (!ctx.atkinson1BitDitherer || !ctx.atkinson1BitDitherer->isValid()) {
-      LOG_ERR("GIF", "OOM: Atkinson1BitDitherer");
+    ctx.oneBitDitherer = makeUniqueNoThrow<ThumbnailDitherer>(ctx.dstWidth, 2, ThumbnailDitherer::kOneBitEdgeBoost);
+    if (!ctx.oneBitDitherer || !ctx.oneBitDitherer->isValid()) {
+      LOG_ERR("GIF", "OOM: thumbnail ditherer");
       return false;
     }
   } else {

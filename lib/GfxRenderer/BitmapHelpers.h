@@ -32,93 +32,6 @@ enum class BmpRowOrder { BottomUp, TopDown };
 // Populates a 1-bit BMP header in the provided memory.
 void createBmpHeader(BmpHeader* bmpHeader, int width, int height, BmpRowOrder rowOrder);
 
-// 1-bit Atkinson dithering - better quality than noise dithering for thumbnails
-// Error distribution pattern (same as 2-bit but quantizes to 2 levels):
-//     X  1/8 1/8
-// 1/8 1/8 1/8
-//     1/8
-class Atkinson1BitDitherer {
- public:
-  explicit Atkinson1BitDitherer(int width) {
-    if (width <= 0) return;
-    const size_t candidateRowSize = static_cast<size_t>(width) + 4;
-    if (candidateRowSize > SIZE_MAX / (3 * sizeof(int16_t))) return;
-    rowSize = candidateRowSize;
-    errorRows = makeUniqueNoThrow<int16_t[]>(rowSize * 3);
-    if (!errorRows) return;
-    errorRow0 = errorRows.get();
-    errorRow1 = errorRow0 + rowSize;
-    errorRow2 = errorRow1 + rowSize;
-  }
-
-  bool isValid() const { return errorRows != nullptr; }
-
-  // EXPLICITLY DELETE THE COPY CONSTRUCTOR
-  Atkinson1BitDitherer(const Atkinson1BitDitherer& other) = delete;
-
-  // EXPLICITLY DELETE THE COPY ASSIGNMENT OPERATOR
-  Atkinson1BitDitherer& operator=(const Atkinson1BitDitherer& other) = delete;
-
-  uint8_t processPixel(int gray, int x) {
-    if (!isValid()) return adjustPixel(gray) < 128 ? 0 : 1;
-
-    // Apply brightness/contrast/gamma adjustments
-    gray = adjustPixel(gray);
-
-    // Add accumulated error
-    int adjusted = gray + errorRow0[x + 2];
-    if (adjusted < 0) adjusted = 0;
-    if (adjusted > 255) adjusted = 255;
-
-    // Quantize to 2 levels (1-bit): 0 = black, 1 = white
-    uint8_t quantized;
-    int quantizedValue;
-    if (adjusted < 128) {
-      quantized = 0;
-      quantizedValue = 0;
-    } else {
-      quantized = 1;
-      quantizedValue = 255;
-    }
-
-    // Calculate error (only distribute 6/8 = 75%)
-    int error = (adjusted - quantizedValue) >> 3;  // error/8
-
-    // Distribute 1/8 to each of 6 neighbors
-    errorRow0[x + 3] += error;  // Right
-    errorRow0[x + 4] += error;  // Right+1
-    errorRow1[x + 1] += error;  // Bottom-left
-    errorRow1[x + 2] += error;  // Bottom
-    errorRow1[x + 3] += error;  // Bottom-right
-    errorRow2[x + 2] += error;  // Two rows down
-
-    return quantized;
-  }
-
-  void nextRow() {
-    if (!isValid()) return;
-    int16_t* temp = errorRow0;
-    errorRow0 = errorRow1;
-    errorRow1 = errorRow2;
-    errorRow2 = temp;
-    memset(errorRow2, 0, rowSize * sizeof(int16_t));
-  }
-
-  void reset() {
-    if (!isValid()) return;
-    memset(errorRow0, 0, rowSize * sizeof(int16_t));
-    memset(errorRow1, 0, rowSize * sizeof(int16_t));
-    memset(errorRow2, 0, rowSize * sizeof(int16_t));
-  }
-
- private:
-  size_t rowSize{0};
-  std::unique_ptr<int16_t[]> errorRows;
-  int16_t* errorRow0 = nullptr;
-  int16_t* errorRow1 = nullptr;
-  int16_t* errorRow2 = nullptr;
-};
-
 // Decision boundaries and error-diffusion reference values for a four-tone image.
 struct ImageTonePalette {
   uint8_t thresholds[3];
@@ -144,6 +57,97 @@ constexpr const ImageTonePalette& paletteFor(ImageToneProfile profile) {
   }
   return legacyTonePalette;
 }
+
+// Error diffusion for cover thumbnails, using Stucki's weights (all / 42):
+//             X   8   4
+//     2   4   8   4   2
+//     1   2   4   2   1
+// It carries the whole quantization error forward, so mid-tones keep their
+// shade; the Atkinson filter used before dropped a quarter of it and washed
+// out low-contrast lettering.
+//
+// edgeBoost, in eighths, moves the decision threshold with the pixel itself
+// (Eschbach-Knox threshold modulation). That sharpens edges and keeps
+// near-black and near-white areas free of stray dots, and it needs no
+// neighbouring rows, so converters can still feed one pixel at a time.
+class ThumbnailDitherer {
+ public:
+  // Tuned on real covers at 296x468; stronger settings posterize logos.
+  static constexpr int kOneBitEdgeBoost = 12;
+
+  // levels is 2 (black/white) or 4 (the even four-tone palette).
+  ThumbnailDitherer(int width, int levels, int edgeBoost = 0) : levels(levels == 4 ? 4 : 2), edgeBoost(edgeBoost) {
+    if (width <= 0) return;
+    const size_t candidateRowSize = static_cast<size_t>(width) + 4;
+    if (candidateRowSize > SIZE_MAX / (3 * sizeof(int16_t))) return;
+    rowSize = candidateRowSize;
+    errorRows = makeUniqueNoThrow<int16_t[]>(rowSize * 3);
+    if (!errorRows) return;
+    errorRow0 = errorRows.get();
+    errorRow1 = errorRow0 + rowSize;
+    errorRow2 = errorRow1 + rowSize;
+  }
+
+  bool isValid() const { return errorRows != nullptr; }
+
+  ThumbnailDitherer(const ThumbnailDitherer& other) = delete;
+  ThumbnailDitherer& operator=(const ThumbnailDitherer& other) = delete;
+
+  // Returns the tone index: 0 is black, levels - 1 is white.
+  uint8_t processPixel(int gray, int x) {
+    if (!isValid()) return quantizeTone(gray);
+
+    // Rows hold the weighted error sum; at most 42 * 255, which fits int16_t.
+    int adjusted = gray + errorRow0[x + 2] / kWeightSum;
+    if (adjusted < 0) adjusted = 0;
+    if (adjusted > 255) adjusted = 255;
+
+    const uint8_t tone = quantizeTone(adjusted + (edgeBoost * (gray - 128)) / 8);
+    // The error is measured without the boost, so tone is conserved.
+    const int error = adjusted - toneValue(tone);
+
+    errorRow0[x + 3] += error * 8;
+    errorRow0[x + 4] += error * 4;
+    errorRow1[x] += error * 2;
+    errorRow1[x + 1] += error * 4;
+    errorRow1[x + 2] += error * 8;
+    errorRow1[x + 3] += error * 4;
+    errorRow1[x + 4] += error * 2;
+    errorRow2[x] += error;
+    errorRow2[x + 1] += error * 2;
+    errorRow2[x + 2] += error * 4;
+    errorRow2[x + 3] += error * 2;
+    errorRow2[x + 4] += error;
+
+    return tone;
+  }
+
+  void nextRow() {
+    if (!isValid()) return;
+    int16_t* temp = errorRow0;
+    errorRow0 = errorRow1;
+    errorRow1 = errorRow2;
+    errorRow2 = temp;
+    memset(errorRow2, 0, rowSize * sizeof(int16_t));
+  }
+
+ private:
+  static constexpr int kWeightSum = 42;
+
+  uint8_t quantizeTone(const int gray) const {
+    if (levels == 2) return gray < 128 ? 0 : 1;
+    return evenTonePalette.quantize(gray);
+  }
+  int toneValue(const uint8_t tone) const { return levels == 2 ? (tone ? 255 : 0) : evenTonePalette.levels[tone]; }
+
+  int levels;
+  int edgeBoost;
+  size_t rowSize{0};
+  std::unique_ptr<int16_t[]> errorRows;
+  int16_t* errorRow0 = nullptr;
+  int16_t* errorRow1 = nullptr;
+  int16_t* errorRow2 = nullptr;
+};
 
 // Atkinson dithering - distributes only 6/8 (75%) of error for cleaner results
 // Error distribution pattern:

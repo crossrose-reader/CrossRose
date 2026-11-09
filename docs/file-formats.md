@@ -123,6 +123,15 @@ layout may shift the destination page.
 
 ## `/.crosspoint/home_carousel_cache_<index>.bin`
 
+### Version 7
+
+Carousel's side covers are now drawn from thumbnails squeezed to their drawn
+width (75x417) instead of 200x390 thumbnails resampled on screen, so the
+header's `sideCoverW` and `sideCoverH` hold the new size and version 6
+snapshots are rebuilt. The layout is unchanged: a `CarouselCacheHeader`
+followed by one full framebuffer of black-and-white artwork. Four-tone cover
+art is drawn from the thumbnails when Home settles and is not cached here.
+
 ### Version 6
 
 The v1.6.1 release normalizes development version 8 to version 6, one step
@@ -975,6 +984,32 @@ Binary layout:
 - `[25-40]` `timeOfDaySeconds[4]` (`uint32_t` LE each)
 - `[41-68]` `dayOfWeekSeconds[7]` (`uint32_t` LE each)
 - `[69-72]` `estimatedTimeLeftSeconds` (`uint32_t` LE, `0` means unavailable)
+
+## EPUB thumbnail revision 3
+
+Generated thumbnails end in `_v3.bmp` (adaptive thumbnails in `_fit_v3.bmp`),
+so thumbnails dithered by older firmware are not reused. Covers
+(`cover*_v2.bmp`) and inline pixel caches (`_v2.pxc`) keep revision 2. Recent
+books normalize to the new pattern on load, as for revision 2. Revision 2
+thumbnail files are no longer read; clearing a book's cache removes them.
+
+One-bit thumbnails are now error diffused with Stucki weights and a
+threshold that follows the pixel (edge enhancement) instead of the Atkinson
+filter. The file layout is the same 1 bpp top-down BMP.
+
+A thumbnail path can carry a format suffix before the extension:
+
+- no suffix: 1 bpp black and white, as before.
+- `_g4`: 2 bpp, palette black / 85 / 170 / white. Used for four-tone cover art
+  on panels that support it (Boox Picco).
+- `_g8`: 8 bpp grayscale source. Temporary: written while a cover is decoded,
+  used to derive the other formats, then deleted.
+
+Carousel keeps, per book, `thumb_296x468_v3.bmp` and `thumb_75x417_v3.bmp`
+(the centred 200:390 crop of the cover, squeezed to the side cover's drawn
+width before dithering), plus the `_g4` form of both on four-tone builds. XTC
+books use the same suffixes on their unversioned `thumb_<W>x<H>.bmp` names;
+their side thumbnails are derived from the one-bit centre thumbnail.
 
 ## EPUB decoded-image revision 2 (2.0.0)
 

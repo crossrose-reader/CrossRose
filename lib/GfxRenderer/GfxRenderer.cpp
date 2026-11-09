@@ -20,6 +20,7 @@
 
 #include "FontCacheManager.h"
 #include "GlyphBitmap.h"
+#include "GrayArtworkBaseline.h"
 
 namespace {
 
@@ -2429,6 +2430,10 @@ void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode, const
 #if defined(CROSSINK_LANGUAGE_BENCHMARK)
   language_benchmark::DisplayScope timing;
 #endif
+  if (retireGrayArtwork(refreshMode)) {
+    display.displayGrayscaleBase(refreshMode, fadingFix || turnOffScreen);
+    return;
+  }
   display.displayBuffer(refreshMode, fadingFix || turnOffScreen);
 }
 
@@ -2469,6 +2474,10 @@ void GfxRenderer::displayBufferAsync(const HalDisplay::RefreshMode refreshMode) 
 #if defined(CROSSINK_LANGUAGE_BENCHMARK)
   language_benchmark::DisplayScope timing;
 #endif
+  if (retireGrayArtwork(refreshMode)) {
+    display.displayGrayscaleBase(refreshMode, fadingFix);
+    return;
+  }
   // The async path has no turn-off-screen hook, which the sunlight fading fix
   // relies on; keep those users on the blocking path.
   if (fadingFix) {
@@ -3239,7 +3248,77 @@ size_t GfxRenderer::getBufferSize() const { return frameBufferSize; }
 
 void GfxRenderer::displayGrayscaleBase(HalDisplay::RefreshMode fallback, const bool turnOffScreen) const {
   absoluteGrayPlanes = false;
+  retireGrayArtwork(fallback);
   display.displayGrayscaleBase(fallback, fadingFix || turnOffScreen);
+}
+
+bool GfxRenderer::supportsGrayArtwork() const {
+#ifdef SIMULATOR
+  return false;
+#else
+  return psramHeapAvailable() && !display.isInverted() &&
+         display.grayscaleCapabilities(HalDisplay::GrayscaleMode::Overlay).supported();
+#endif
+}
+
+bool GfxRenderer::retireGrayArtwork(const HalDisplay::RefreshMode mode) const {
+  if (!grayArtwork_.onPanel) return false;
+  const bool differential = mode == HalDisplay::FAST_REFRESH;
+  if (grayArtwork_.keepForNextRefresh && differential && frameBuffer) {
+    // Same picture, other pixels changed: a differential refresh skips the
+    // artwork because its base pixels are unchanged. Track the new base.
+    grayArtwork_.keepForNextRefresh = false;
+    memcpy(grayArtwork_.base.get(), frameBuffer, frameBufferSize);
+    return false;
+  }
+  grayArtwork_.keepForNextRefresh = false;
+  grayArtwork_.onPanel = false;
+  // HALF and FULL waveforms drive every pixel, gray ones included.
+  if (!differential || !frameBuffer) return false;
+
+  uint8_t* shown = grayArtwork_.base.get();
+  uint8_t* scratch = grayArtwork_.mask.get();  // still the gray mask here
+  buildGrayArtworkBaseline(shown, scratch, frameBuffer, frameBufferSize);
+  // The mask is spent, so its buffer parks the new frame while the baseline
+  // passes through the framebuffer: cleanupGrayscaleBuffers() copies any other
+  // pointer over the framebuffer, so the baseline has to be sent from there.
+  memcpy(scratch, frameBuffer, frameBufferSize);
+  memcpy(frameBuffer, shown, frameBufferSize);
+  display.cleanupGrayscaleBuffers(frameBuffer);
+  memcpy(frameBuffer, scratch, frameBufferSize);
+  return true;
+}
+
+bool GfxRenderer::beginGrayArtwork() {
+  if (!frameBuffer || !supportsGrayArtwork()) return false;
+  // Two framebuffer-sized copies (the base frame and the gray mask) outlive
+  // this pass: the next refresh needs both to clear the gray ink. They are far
+  // too large for stack or static storage and stay allocated for reuse.
+  if (!grayArtwork_.base) grayArtwork_.base = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayArtwork_.mask) grayArtwork_.mask = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayArtwork_.base || !grayArtwork_.mask) {
+    LOG_ERR("GFX", "No PSRAM for four-tone artwork (%u bytes x2)", static_cast<unsigned>(frameBufferSize));
+    return false;
+  }
+  // Retires any earlier artwork first; that step borrows both buffers.
+  displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+  memcpy(grayArtwork_.base.get(), frameBuffer, frameBufferSize);
+  grayArtwork_.inProgress = true;
+  return true;
+}
+
+void GfxRenderer::finishGrayArtwork() {
+  if (!grayArtwork_.inProgress) return;
+  grayArtwork_.inProgress = false;
+  // The framebuffer holds the MSB plane: every pixel that will be gray.
+  memcpy(grayArtwork_.mask.get(), frameBuffer, frameBufferSize);
+  copyGrayscaleMsbBuffers();
+  displayGrayBuffer();
+  setRenderMode(BW);
+  memcpy(frameBuffer, grayArtwork_.base.get(), frameBufferSize);
+  cleanupGrayscaleWithFrameBuffer();
+  grayArtwork_.onPanel = true;
+  grayArtwork_.keepForNextRefresh = false;
 }
 
 void GfxRenderer::preconditionGrayscale() const { display.preconditionGrayscale(); }
@@ -3405,6 +3484,8 @@ bool GfxRenderer::displayAbsoluteGrayscaleBase(HalDisplay::RefreshMode fallback)
 #ifdef SIMULATOR
   return false;
 #else
+  // The absolute image waveform repaints every pixel.
+  grayArtwork_.onPanel = false;
   if (!display.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, fallback, fadingFix)) return false;
   absoluteGrayPlanes = true;
   return true;
@@ -3416,6 +3497,7 @@ bool GfxRenderer::displayDirectGrayscaleBase(HalDisplay::RefreshMode fallback) c
 #ifdef SIMULATOR
   return false;
 #else
+  grayArtwork_.onPanel = false;
   if (!display.displayGrayscaleBase(HalDisplay::GrayscaleMode::Direct, fallback, fadingFix)) return false;
   // Direct uploads complete planes, so grayPlanePixel() must use the absolute
   // encoding rather than overlay masks.
@@ -3498,6 +3580,7 @@ bool GfxRenderer::supportsDeferredGrayscaleBase() const {
 
 bool GfxRenderer::displayGrayscaleBaseAsync(HalDisplay::RefreshMode fallback) const {
   absoluteGrayPlanes = false;
+  retireGrayArtwork(fallback);
   if (fadingFix) {
     displayGrayscaleBase(fallback);
     return false;

@@ -41,3 +41,13 @@
 
 // Every button-only reader uses the full-screen menu and its bounded sample preview.
 #define CROSSINK_APP_READER_SAMPLE_PREVIEW (!CROSSINK_APP_CAP_TOUCH)
+
+// Four-tone Home cover art runs the overlay grayscale pass over large areas
+// and keeps framebuffer-sized plane copies in PSRAM. It is limited to the
+// Picco until the sequence is verified on other panels; every other image
+// keeps black-and-white covers.
+#if defined(FREEINK_DEVICE_PICCO) && FREEINK_DEVICE_PICCO
+#define CROSSINK_APP_CAP_GRAY_COVER_ART 1
+#else
+#define CROSSINK_APP_CAP_GRAY_COVER_ART 0
+#endif

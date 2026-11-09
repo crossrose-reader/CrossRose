@@ -74,7 +74,9 @@ int main() {
   // Upgrade with old covers and both historical thumbnail names still on SD.
   Storage.files = {"/cache/cover.bmp", "/cache/cover_crop_picco_image.bmp",
                    "/cache/thumb_120x180.bmp", "/cache/thumb_180.bmp",
-                   "/cache/thumb_120x180_fit.bmp", "/cache/img_0_1.pxc"};
+                   "/cache/thumb_120x180_fit.bmp", "/cache/img_0_1.pxc",
+                   // Thumbnail revision 2, dithered by the older filter.
+                   "/cache/thumb_120x180_v2.bmp", "/cache/thumb_120x180_fit_v2.bmp"};
   for (bool crop : {false, true}) {
     for (auto tone : {ImageToneProfile::Legacy, ImageToneProfile::Even, ImageToneProfile::PiccoCover}) {
       assert(!Storage.exists(epub.getCoverBmpPath(crop, tone).c_str()));

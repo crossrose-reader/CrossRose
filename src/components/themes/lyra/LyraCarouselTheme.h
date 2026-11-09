@@ -41,8 +41,32 @@ class LyraCarouselTheme : public LyraTheme {
   // thumbnail avoids scaling an already-dithered BMP at draw time.
   static constexpr int kCenterThumbW = kDisplayCenterW - kCenterCoverVisualInset * 2;  // 296
   static constexpr int kCenterThumbH = kDisplayCenterH - kCenterCoverVisualInset * 2;  // 468
+  // Framing of a side cover: the centred kSideCoverW:kSideCoverH crop of the cover.
   static constexpr int kSideCoverW = 200;
   static constexpr int kSideCoverH = LyraCarouselMetrics::values.homeCoverHeight - 210;  // 390
+  // Drawn geometry of the nearer side covers, which lean away from the centre.
+  static constexpr int kNearSideW = (kBaseDisplayCenterW * 26) / 100;       // 75
+  static constexpr int kNearSideInnerH = (kBaseDisplayCenterH * 90) / 100;  // 417
+  static constexpr int kNearSideOuterH = (kBaseDisplayCenterH * 82) / 100;  // 380
+  // Side thumbnails hold that crop already squeezed to the drawn width, so the
+  // dither pattern is made at the size it is shown. Drawing maps columns 1:1
+  // and only drops rows towards the shorter edge.
+  static constexpr int kSideThumbW = kNearSideW;
+  static constexpr int kSideThumbH = kNearSideInnerH;
+
+  // OneBit is the ordinary black-and-white artwork. FourToneBase and
+  // FourTonePlane are the passes of a four-tone picture (see
+  // GfxRenderer::beginGrayArtwork): the base draws every gray pixel black,
+  // and the plane pass, run once per grayscale render mode, marks the pixels
+  // to lighten. Covers without a four-tone thumbnail stay black and white.
+  enum class CoverArtPass : uint8_t { OneBit, FourToneBase, FourTonePlane };
+  // Draws the covers and, in the two black-and-white passes, the title and
+  // position dots. `selected` is whether the centre cover carries the thick
+  // selection outline, which the plane pass must leave untinted.
+  void drawCoverArt(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks, int centerIdx,
+                    CoverArtPass pass, bool selected) const;
+  // True when the centre cover has a four-tone thumbnail to show.
+  static bool hasFourToneCoverArt(const std::vector<RecentBook>& recentBooks, int centerIdx);
 
   static void setPreRenderIndex(int idx);
   void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,

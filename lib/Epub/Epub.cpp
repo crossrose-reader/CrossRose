@@ -303,11 +303,11 @@ void releaseReaderSdFontCachesBeforeCoverDecode(const GfxRenderer* renderer, con
 }
 
 std::string getThumbBmpPathForDimensions(const std::string& cachePath, int width, int height) {
-  return cachePath + "/thumb_" + std::to_string(width) + "x" + std::to_string(height) + "_v2.bmp";
+  return cachePath + "/thumb_" + std::to_string(width) + "x" + std::to_string(height) + "_v3.bmp";
 }
 
 std::string getAdaptiveThumbBmpPathForDimensions(const std::string& cachePath, int width, int height) {
-  return cachePath + "/thumb_" + std::to_string(width) + "x" + std::to_string(height) + "_fit_v2.bmp";
+  return cachePath + "/thumb_" + std::to_string(width) + "x" + std::to_string(height) + "_fit_v3.bmp";
 }
 
 std::string legacyCachePathForFilePath(const std::string& filepath, const std::string& cacheDir) {
@@ -1414,7 +1414,7 @@ bool Epub::generateCoverBmp(bool cropped, const GfxRenderer* renderer, const int
   return false;
 }
 
-std::string Epub::getThumbBmpPath() const { return cachePath + "/thumb_[WIDTH]x[HEIGHT]_v2.bmp"; }
+std::string Epub::getThumbBmpPath() const { return cachePath + "/thumb_[WIDTH]x[HEIGHT]_v3.bmp"; }
 std::string Epub::getThumbBmpPath(int height) const { return getThumbBmpPath(0, height); }
 std::string Epub::getThumbBmpPath(int width, int height) const {
   normalizeThumbDimensions(width, height);
@@ -1457,6 +1457,15 @@ bool Epub::generateThumbBmpFromSource(int width, int height, const GfxRenderer* 
 
 bool Epub::generateAdaptiveThumbBmp(int width, int height, const GfxRenderer* renderer, const int readerFontId) const {
   return generateThumbBmpInternal(width, height, true, renderer, readerFontId);
+}
+
+std::string Epub::getThumbSourceBmpPath(int width, int height) const {
+  normalizeThumbDimensions(width, height);
+  return thumbnailVariantPath(getThumbBmpPathForDimensions(cachePath, width, height), ThumbnailFormat::Gray8);
+}
+
+bool Epub::generateThumbSourceBmp(int width, int height, const GfxRenderer* renderer, const int readerFontId) const {
+  return generateThumbBmpInternal(width, height, false, renderer, readerFontId, nullptr, ThumbnailFormat::Gray8);
 }
 
 std::string Epub::getCachedCoverImagePath(const std::string& coverImageHref) const {
@@ -1509,13 +1518,17 @@ bool Epub::ensureCachedCoverImage(const std::string& coverImageHref, std::string
 }
 
 bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveContain, const GfxRenderer* renderer,
-                                    const int readerFontId, const std::string* coverHrefOverride) const {
+                                    const int readerFontId, const std::string* coverHrefOverride,
+                                    const ThumbnailFormat format) const {
   if (height <= 0) {
     LOG_DBG("EBP", "Using default thumb BMP height for requested dimensions: %dx%d", width, height);
   }
   normalizeThumbDimensions(width, height);
-  const std::string thumbPath = adaptiveContain ? getAdaptiveThumbBmpPathForDimensions(cachePath, width, height)
-                                                : getThumbBmpPathForDimensions(cachePath, width, height);
+  const bool gray8 = format == ThumbnailFormat::Gray8;
+  const std::string thumbPath =
+      thumbnailVariantPath(adaptiveContain ? getAdaptiveThumbBmpPathForDimensions(cachePath, width, height)
+                                           : getThumbBmpPathForDimensions(cachePath, width, height),
+                           format);
 
   // Already generated with matching dimensions, return true
   if (cachedBmpMatchesDimensions(thumbPath, width, height, adaptiveContain)) {
@@ -1549,8 +1562,10 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_WIDTH = width;
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail JPG decode");
-    const bool success = JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(coverJpg, thumbBmp, THUMB_TARGET_WIDTH,
-                                                                             THUMB_TARGET_HEIGHT, adaptiveContain);
+    const bool success = gray8 ? JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(
+                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT)
+                               : JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(
+                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
     // Explicitly close() files before leaving the converter path.
     coverJpg.close();
     thumbBmp.close();
@@ -1579,8 +1594,10 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_WIDTH = width;
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail PNG decode");
-    const bool success = PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(coverPng, thumbBmp, THUMB_TARGET_WIDTH,
-                                                                           THUMB_TARGET_HEIGHT, adaptiveContain);
+    const bool success = gray8 ? PngToBmpConverter::pngFileToGray8BmpStreamWithSize(
+                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT)
+                               : PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(
+                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
     // Explicitly close() files before leaving the converter path.
     coverPng.close();
     thumbBmp.close();
@@ -1591,6 +1608,11 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     }
     return success;
   } else if (FsHelpers::hasGifExtension(coverImageHref)) {
+    if (gray8) {
+      // Not an error: the caller falls back to a one-bit thumbnail.
+      LOG_DBG("EBP", "GIF covers have no 8-bit thumbnail source");
+      return false;
+    }
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail GIF decode");
     return generateGifBmp(*this, coverImageHref, thumbPath, [width, height, adaptiveContain](FsFile& gif, Print& bmp) {
       return GifToBmpConverter::gifFileTo1BitBmpStreamWithSize(gif, bmp, width, height, adaptiveContain);

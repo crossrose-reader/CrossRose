@@ -7,6 +7,7 @@
 - Stable and nightly releases include `crossink-languages-<version>.zip`. Like CrossInk 2.0, the firmware has English built in; the zip holds the other menu languages and the hyphenation packs to copy to the SD card (see [Languages](https://github.com/crossrose-reader/CrossRose/blob/main/docs/languages.md)).
 - Set how long to touch and hold a word before word selection opens (400–1000 ms, in 100 ms steps) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 - Two thicker reader progress bars: Progress Bar Thickness for the top and bottom status bars now offers Extra Thick and Thickest after Thin, Medium and Thick, on the device and in the web settings page.
+- On the Boox Picco, Carousel's Home covers are shown in four tones (white, two grays and black) instead of black and white. Covers first appear in black and white; about half a second after you stop swiping they are redrawn in four tones, with one extra screen flash. Dark Mode keeps black-and-white covers.
 
 ### Changed
 
@@ -17,6 +18,9 @@
 - On touchscreen devices, touching and holding away from the text, such as on a margin or an image, no longer redraws the page before the release turns it.
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
 - Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
+- Black-and-white cover thumbnails on Home and in the Library keep more detail: small lettering is sharper and dark areas are cleaner. Thumbnails are generated again the first time each cover is shown.
+- Carousel's side covers are squeezed to their drawn width before they are dithered, instead of after.
+- Carousel decodes each cover once, instead of twice, when it makes a book's thumbnails.
 - What's New shows CrossRose's version (v1.0.0) in its header, and its Full changelog link points to CrossRose's releases page instead of CrossInk's. The notes themselves are unchanged, so if you already saw them in CrossInk 2.0, What's New does not open again.
 
 ### Fixed

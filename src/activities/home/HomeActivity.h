@@ -1,8 +1,10 @@
 #pragma once
 #include <HalDisplay.h>
+#include <Memory.h>
 #include <ScreenInsets.h>
 
 #include <array>
+#include <atomic>
 #include <functional>
 #include <optional>
 #include <string>
@@ -91,6 +93,25 @@ class HomeActivity final : public Activity {
 
   uint8_t* carouselFrames[kCarouselFrameCount] = {};
   bool carouselFramesReady = false;
+
+  // Four-tone cover art (Carousel on CROSSINK_APP_CAP_GRAY_COVER_ART builds).
+  // Covers appear in black and white on a fast refresh; once Home has been
+  // idle for a moment loop() asks for one more render that redraws them in
+  // four tones. The deadline and the request cross from loop() to the render
+  // task, so both are atomic.
+  std::atomic<uint32_t> fourToneDueAtMs{0};  // 0 = not armed
+  std::atomic<bool> fourToneRequested{false};
+  // What the four-tone picture on the panel shows; a render of the same state
+  // keeps it instead of falling back to black and white.
+  bool fourToneShown = false;
+  int fourToneCenterIdx = -1;
+  bool fourToneSelected = false;
+  uint64_t fourToneKeyHash = 0;
+  // Stops retrying after the pass could not start (no PSRAM for its planes).
+  bool fourToneUnavailable = false;
+  // Artwork-only base frame of that picture: one framebuffer in PSRAM, kept
+  // so such renders skip the SD card. Freed in onExit().
+  HeapByteBuffer fourToneBaseArt;
   bool carouselFramesInverted = false;
   bool carouselWarmupPending = false;
   ScreenInsets insetsBeforeFrontlightPanel;
@@ -128,6 +149,8 @@ class HomeActivity final : public Activity {
   int chooseCarouselEvictionSlot(int centerIdx, int bookCount,
                                  std::optional<int> protectedBookIdx = std::nullopt) const;
   void renderCarouselFrameToCurrentBuffer(int bookIdx);
+  bool canShowFourToneCovers(int centerIdx) const;
+  void resetFourToneCovers();
   void renderCarouselFrame(int bookIdx, int slotIdx);
   int getHighlightedBookIndex() const;
   int getVisibleRecentBookCount() const;

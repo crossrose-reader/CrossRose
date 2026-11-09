@@ -56,6 +56,18 @@ class GfxRenderer {
   HalDisplay& display;
   RenderMode renderMode;
   mutable bool absoluteGrayPlanes = false;
+  struct GrayArtwork {
+    HeapByteBuffer base;  // B/W frame the controller holds under the gray ink
+    HeapByteBuffer mask;  // MSB plane: 1 bits are gray on the panel
+    bool inProgress = false;
+    bool onPanel = false;
+    bool keepForNextRefresh = false;
+  };
+  // Display calls are const; this tracks the panel, not the drawing state.
+  mutable GrayArtwork grayArtwork_;
+  // Called before every refresh. Returns true when the frame must be shown
+  // through the grayscale-base path so gray pixels get driven to B/W.
+  bool retireGrayArtwork(HalDisplay::RefreshMode mode) const;
   Orientation orientation;
   bool fadingFix;
   uint8_t* frameBuffer = nullptr;
@@ -407,6 +419,31 @@ class GfxRenderer {
   bool storeBwBuffer();    // Returns true if buffer was stored successfully
   void restoreBwBuffer();  // Restore and free the stored buffer
   void cleanupGrayscaleWithFrameBuffer() const;
+
+  // Four-tone artwork: the overlay grayscale pass applied to pictures rather
+  // than glyph edges. Sequence, with the B/W base frame in the framebuffer
+  // (every gray pixel drawn black):
+  //   beginGrayArtwork();
+  //   clearScreen(0x00); setRenderMode(GRAYSCALE_LSB); <draw>; copyGrayscaleLsbBuffers();
+  //   clearScreen(0x00); setRenderMode(GRAYSCALE_MSB); <draw>; finishGrayArtwork();
+  // finishGrayArtwork() restores the base frame and BW render mode. The gray
+  // ink it leaves is cleared by whichever refresh comes next, from any screen
+  // (see retireGrayArtwork). Costs two framebuffer-sized PSRAM buffers, kept
+  // for reuse once allocated.
+  //
+  // False on panels without an overlay waveform, while output is inverted
+  // (the SDK skips grayscale there), and without PSRAM for the plane copies.
+  bool supportsGrayArtwork() const;
+  // Displays the base frame. Returns false, having displayed nothing, when
+  // unsupported or out of memory; the caller then shows the frame normally.
+  bool beginGrayArtwork();
+  void finishGrayArtwork();
+  // True while a finished four-tone picture is on the panel.
+  bool hasGrayArtwork() const { return grayArtwork_.onPanel; }
+  // Call before a FAST refresh of a frame whose artwork pixels equal the base
+  // frame passed to beginGrayArtwork(): that one refresh leaves the gray ink
+  // alone. Any other refresh mode clears it as usual.
+  void keepGrayArtworkForNextRefresh() const { grayArtwork_.keepForNextRefresh = grayArtwork_.onPanel; }
 
   // Font helpers
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;
