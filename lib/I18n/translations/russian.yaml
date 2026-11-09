@@ -302,6 +302,8 @@ STR_PROGRESS_BAR_THICKNESS: "Толщина индикатора прогрес�
 STR_PROGRESS_BAR_THIN: "Тонкий"
 STR_PROGRESS_BAR_MEDIUM: "Средний"
 STR_PROGRESS_BAR_THICK: "Толстый"
+STR_PROGRESS_BAR_EXTRA_THICK: "Очень толстый"
+STR_PROGRESS_BAR_THICKEST: "Самый толстый"
 STR_BOOK: "Книга"
 STR_CHAPTER: "Глава"
 STR_EXAMPLE_CHAPTER: "Глава 21"
