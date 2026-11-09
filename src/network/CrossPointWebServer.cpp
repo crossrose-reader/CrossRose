@@ -65,6 +65,7 @@
 #include "util/BookMoveUtils.h"
 #include "util/FontFamilyLabel.h"
 #include "util/OpdsDownloadFolder.h"
+#include "util/ProgressBarThicknessLabels.h"
 #include "util/ReaderStatusBarJson.h"
 #include "util/StringUtils.h"
 
@@ -1712,8 +1713,8 @@ void CrossPointWebServer::handleGetStatusBars() const {
   addLabels("percentageFormats", {StrId::STR_PERCENTAGE_FORMAT_WHOLE, StrId::STR_PERCENTAGE_FORMAT_ONE_DECIMAL,
                                   StrId::STR_PERCENTAGE_FORMAT_TWO_DECIMALS});
   addLabels("progressModes", {StrId::STR_BOOK, StrId::STR_CHAPTER, StrId::STR_HIDE});
-  addLabels("thicknesses",
-            {StrId::STR_PROGRESS_BAR_THIN, StrId::STR_PROGRESS_BAR_MEDIUM, StrId::STR_PROGRESS_BAR_THICK});
+  JsonArray thicknesses = doc["thicknesses"].to<JsonArray>();
+  for (const StrId id : PROGRESS_BAR_THICKNESS_NAMES) thicknesses.add(I18N.get(id));
   addLabels("hideOptions", {StrId::STR_OFF, StrId::STR_ON});
   JsonArray separators = doc["separators"].to<JsonArray>();
   for (uint8_t i = 0; i < static_cast<uint8_t>(ReaderStatusBarSeparator::Count); ++i) {

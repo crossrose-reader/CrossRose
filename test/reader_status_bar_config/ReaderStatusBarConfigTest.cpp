@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
+#include <iterator>
+
 #include "ReaderStatusBarConfig.h"
 #include "ReaderStatusBarJson.h"
 
@@ -89,6 +92,14 @@ TEST(ReaderStatusBarConfig, RejectsInvalidSavedSlotsAndUnavailableClock) {
   EXPECT_FALSE(validReaderStatusBarItemValue(static_cast<int>(ReaderStatusBarItem::Count), true));
   EXPECT_TRUE(validReaderStatusBarChoice(2, 3));
   EXPECT_FALSE(validReaderStatusBarChoice(3, 3));
+}
+
+TEST(ReaderStatusBarConfig, ProgressBarThicknessesKeepTheirPixelHeights) {
+  // Thin, Medium, Thick, Extra Thick, Thickest; the web preview mirrors these heights.
+  constexpr int expected[] = {2, 4, 6, 8, 10};
+  for (size_t thickness = 0; thickness < std::size(expected); ++thickness) {
+    EXPECT_EQ(readerProgressBarHeight(static_cast<uint8_t>(thickness)), expected[thickness]) << thickness;
+  }
 }
 
 TEST(ReaderStatusBarConfig, WebPayloadRoundTripsBothBarsWithDuplicates) {

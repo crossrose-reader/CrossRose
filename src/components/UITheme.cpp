@@ -357,7 +357,7 @@ int UITheme::getReaderStatusBarHeight(const ReaderStatusBarPosition position, co
   if (config.hidden) return 0;
   const bool hasText = config.hasTextItems(halClock.isAvailable());
   const int progressSpace = config.progressBar != CrossPointSettings::HIDE_PROGRESS
-                                ? static_cast<int>((config.progressBarThickness + 1) * 2) + metrics.progressBarMarginTop
+                                ? readerProgressBarHeight(config.progressBarThickness) + metrics.progressBarMarginTop
                                 : 0;
   return readerStatusBarTotalHeight(position, hasText, progressSpace, getReaderStatusBarTextHeight(renderer));
 }
@@ -368,7 +368,7 @@ int UITheme::getReaderProgressBarHeight(const ReaderStatusBarPosition position) 
   const ThemeMetrics& metrics = UITheme::getInstance().getMetrics();
   const auto config = SETTINGS.readerStatusBar(position);
   return !config.hidden && config.progressBar != CrossPointSettings::HIDE_PROGRESS
-             ? static_cast<int>((config.progressBarThickness + 1) * 2) + metrics.progressBarMarginTop
+             ? readerProgressBarHeight(config.progressBarThickness) + metrics.progressBarMarginTop
              : 0;
 }
 

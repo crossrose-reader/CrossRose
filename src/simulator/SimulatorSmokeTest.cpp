@@ -4612,6 +4612,78 @@ class SimulatorSmokeTest {
     LOG_INF("SMOKE", "Status bar text sizes, persistence, empty bars, auto-turn and crowded layout passed");
   }
 
+  // Every Progress Bar Thickness choice must survive a settings round trip and draw a
+  // full-width bar of readerProgressBarHeight() rows inside the space the readers reserve for it.
+  void verifyProgressBarThicknesses() {
+    constexpr uint8_t thicknessCount = CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT;
+    JsonDocument original;
+    SETTINGS.toJson(original);
+    const auto originalOrientation = renderer.getOrientation();
+    ReaderStatusBarContent content;
+    content.previewOriginY = 100;
+    content.bookProgress = 100.0f;
+    content.chapterTitle = "Chapter";
+    RenderLock lock;
+    for (const auto orientation : {GfxRenderer::Portrait, GfxRenderer::LandscapeClockwise}) {
+      renderer.setOrientation(orientation);
+      int previousHeight = 0;
+      for (uint8_t thickness = 0; thickness < thicknessCount; ++thickness) {
+        ReaderStatusBarConfig bar;  // Every slot empty: the bar shows only the progress bar.
+        bar.progressBar = CrossPointSettings::BOOK_PROGRESS;
+        bar.progressBarThickness = thickness;
+        SETTINGS.topReaderStatusBar = bar;
+        SETTINGS.bottomReaderStatusBar = bar;
+        JsonDocument saved;
+        SETTINGS.toJson(saved);
+        SETTINGS.topReaderStatusBar = ReaderStatusBarConfig{};
+        SETTINGS.bottomReaderStatusBar = ReaderStatusBarConfig{};
+        SETTINGS.fromJson(saved.as<JsonVariantConst>());
+        if (SETTINGS.topReaderStatusBar.progressBarThickness != thickness ||
+            SETTINGS.bottomReaderStatusBar.progressBarThickness != thickness)
+          fail("Progress bar thickness %u did not survive a settings round trip", static_cast<unsigned>(thickness));
+        const int expectedRows = readerProgressBarHeight(thickness);
+        for (const auto position : {ReaderStatusBarPosition::Top, ReaderStatusBarPosition::Bottom}) {
+          renderer.clearScreen();
+          GUI.drawReaderStatusBar(renderer, position, content);
+          const int end = content.previewOriginY + UITheme::getReaderStatusBarHeight(position, renderer);
+          for (const int x : {renderer.getScreenWidth() / 4, renderer.getScreenWidth() * 3 / 4}) {
+            int first = -1;
+            int rows = 0;
+            for (int y = 0; y < renderer.getScreenHeight(); ++y) {
+              if (!renderer.isPixelBlack(x, y)) continue;
+              if (first < 0) first = y;
+              ++rows;
+            }
+            if (rows != expectedRows || first < content.previewOriginY || first + rows > end)
+              fail(
+                  "Progress bar thickness %u drew %d rows from y=%d (expected %d inside %d..%d): orientation=%u "
+                  "position=%u",
+                  static_cast<unsigned>(thickness), rows, first, expectedRows, content.previewOriginY, end,
+                  static_cast<unsigned>(orientation), static_cast<unsigned>(position));
+          }
+        }
+        // Next to text, each thicker choice must reserve more reading space.
+        bar.slots[ReaderStatusBarConfig::CENTER] = ReaderStatusBarItem::TitleChapter;
+        SETTINGS.bottomReaderStatusBar = bar;
+        const int height = UITheme::getReaderStatusBarHeight(ReaderStatusBarPosition::Bottom, renderer);
+        if (height <= previousHeight)
+          fail("Progress bar thickness %u did not reserve more reading space", static_cast<unsigned>(thickness));
+        previousHeight = height;
+      }
+    }
+    JsonDocument invalid;
+    SETTINGS.toJson(invalid);
+    invalid["readerStatusBars"]["bottom"]["thickness"] = thicknessCount;
+    SETTINGS.bottomReaderStatusBar.progressBarThickness = 0;
+    SETTINGS.fromJson(invalid.as<JsonVariantConst>());
+    if (SETTINGS.bottomReaderStatusBar.progressBarThickness >= thicknessCount)
+      fail("Progress bar thickness past the last choice was not repaired");
+    SETTINGS.fromJson(original.as<JsonVariantConst>());
+    renderer.setOrientation(originalOrientation);
+    renderer.clearScreen();
+    LOG_INF("SMOKE", "Progress bar thicknesses, persistence and reserved space passed");
+  }
+
   void verifyLoadingPopupBackdrop() {
     RenderLock lock;
     const auto originalOrientation = renderer.getOrientation();
@@ -7907,6 +7979,7 @@ class SimulatorSmokeTest {
           std::_Exit(0);
         }
         verifyStatusBarTextSizes();
+        verifyProgressBarThicknesses();
         verifyLoadingPopupBackdrop();
         verifyCachedHomeProgressMigration();
         if (!CrossPointSettings::verifySleepTimeoutMigrationContract()) {
