@@ -846,7 +846,7 @@ void BaseTheme::drawReaderStatusBar(const GfxRenderer& renderer, const ReaderSta
   const bool clockAvailable = halClock.isAvailable() || content.previewClock != nullptr;
   const bool hasText = config.hasTextItems(clockAvailable) || (!top && content.autoTurnLabel != nullptr);
   const int progressHeight = config.progressBar != CrossPointSettings::HIDE_PROGRESS
-                                 ? static_cast<int>((config.progressBarThickness + 1) * 2)
+                                 ? readerProgressBarHeight(config.progressBarThickness)
                                  : 0;
   const int progressSpace = progressHeight > 0 ? progressHeight + metrics.progressBarMarginTop : 0;
   const int textHeight = hasText ? textLaneHeight : 0;

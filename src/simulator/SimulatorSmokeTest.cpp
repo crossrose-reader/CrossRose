@@ -4613,7 +4613,7 @@ class SimulatorSmokeTest {
   }
 
   // Every Progress Bar Thickness choice must survive a settings round trip and draw a
-  // full-width bar of (choice + 1) * 2 rows inside the space the readers reserve for it.
+  // full-width bar of readerProgressBarHeight() rows inside the space the readers reserve for it.
   void verifyProgressBarThicknesses() {
     constexpr uint8_t thicknessCount = CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT;
     JsonDocument original;
@@ -4641,7 +4641,7 @@ class SimulatorSmokeTest {
         if (SETTINGS.topReaderStatusBar.progressBarThickness != thickness ||
             SETTINGS.bottomReaderStatusBar.progressBarThickness != thickness)
           fail("Progress bar thickness %u did not survive a settings round trip", static_cast<unsigned>(thickness));
-        const int expectedRows = (thickness + 1) * 2;
+        const int expectedRows = readerProgressBarHeight(thickness);
         for (const auto position : {ReaderStatusBarPosition::Top, ReaderStatusBarPosition::Bottom}) {
           renderer.clearScreen();
           GUI.drawReaderStatusBar(renderer, position, content);

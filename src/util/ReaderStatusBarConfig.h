@@ -52,6 +52,10 @@ constexpr bool validReaderStatusBarChoice(const int value, const int optionCount
   return value >= 0 && value < optionCount;
 }
 
+// Rows drawn for a stored Progress Bar Thickness choice: Thin 2 px up to Thickest 10 px.
+// The drawn bar and the reading space reserved for it must both use this.
+constexpr int readerProgressBarHeight(const uint8_t thickness) { return (static_cast<int>(thickness) + 1) * 2; }
+
 struct ReaderStatusBarConfig {
   static constexpr int TOP_TEXT_INSET = 2;
   static constexpr int BOOKMARK_WIDTH = 9;

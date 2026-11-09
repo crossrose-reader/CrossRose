@@ -15,6 +15,7 @@
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
+#include "util/ProgressBarThicknessLabels.h"
 
 namespace fui = freeink::ui;
 
@@ -110,18 +111,9 @@ const char* progressModeLabel(const uint8_t mode) {
 }
 
 const char* thicknessLabel(const uint8_t thickness) {
-  switch (thickness) {
-    case CrossPointSettings::PROGRESS_BAR_THIN:
-      return tr(STR_PROGRESS_BAR_THIN);
-    case CrossPointSettings::PROGRESS_BAR_THICK:
-      return tr(STR_PROGRESS_BAR_THICK);
-    case CrossPointSettings::PROGRESS_BAR_EXTRA_THICK:
-      return tr(STR_PROGRESS_BAR_EXTRA_THICK);
-    case CrossPointSettings::PROGRESS_BAR_THICKEST:
-      return tr(STR_PROGRESS_BAR_THICKEST);
-    default:
-      return tr(STR_PROGRESS_BAR_MEDIUM);
-  }
+  return I18N.get(PROGRESS_BAR_THICKNESS_NAMES[thickness < CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT
+                                                   ? thickness
+                                                   : CrossPointSettings::PROGRESS_BAR_NORMAL]);
 }
 
 constexpr StrId textSizeNames[] = {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE};
@@ -398,11 +390,12 @@ void StatusBarSettingsActivity::openOptionPicker() {
     }
   } else {
     titleId = StrId::STR_PROGRESS_BAR_THICKNESS;
-    options = {tr(STR_PROGRESS_BAR_THIN), tr(STR_PROGRESS_BAR_MEDIUM), tr(STR_PROGRESS_BAR_THICK),
-               tr(STR_PROGRESS_BAR_EXTRA_THICK), tr(STR_PROGRESS_BAR_THICKEST)};
-    rawValues = {CrossPointSettings::PROGRESS_BAR_THIN, CrossPointSettings::PROGRESS_BAR_NORMAL,
-                 CrossPointSettings::PROGRESS_BAR_THICK, CrossPointSettings::PROGRESS_BAR_EXTRA_THICK,
-                 CrossPointSettings::PROGRESS_BAR_THICKEST};
+    options.reserve(CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT);
+    rawValues.reserve(CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT);
+    for (uint8_t i = 0; i < CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT; ++i) {
+      options.emplace_back(I18N.get(PROGRESS_BAR_THICKNESS_NAMES[i]));
+      rawValues.push_back(i);
+    }
     currentIndex = config.progressBarThickness;
   }
   optionPopup.show(titleId, options, currentIndex, [this, position, item, rawValues](const int selected) {
