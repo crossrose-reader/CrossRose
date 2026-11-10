@@ -182,3 +182,15 @@ TEST(ThumbnailDeriver, RejectsBadRequestsAndShortWrites) {
     EXPECT_FALSE(deriveThumbnailBmp(source, out, {8, 8, 0, 0, ThumbnailFormat::OneBit})) << limit;
   }
 }
+
+TEST(ThumbnailSource, AspectFillHeightKeepsTheCoverAspectWithinRange) {
+  // Wider than 296:468: cropped to the centre thumbnail's aspect.
+  EXPECT_EQ(aspectFillHeight(600, 800, 296, 468, 578), 468);
+  // Between the centre and side framings: the cover's own aspect, uncropped.
+  EXPECT_EQ(aspectFillHeight(600, 1000, 296, 468, 578), 493);
+  // Narrower than 296:578: cropped to that aspect.
+  EXPECT_EQ(aspectFillHeight(500, 1000, 296, 468, 578), 578);
+  // Without a larger maximum it is the plain crop-to-fill height.
+  EXPECT_EQ(aspectFillHeight(500, 1000, 296, 468, 0), 468);
+  EXPECT_EQ(aspectFillHeight(0, 1000, 296, 468, 578), 468);
+}

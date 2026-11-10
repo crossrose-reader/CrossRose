@@ -94,16 +94,26 @@ class HomeActivity final : public Activity {
   bool carouselFramesReady = false;
 
   // Four-tone cover art (Carousel on CROSSINK_APP_CAP_GRAY_COVER_ART builds).
-  // A position's artwork is drawn once into three PSRAM frames: the B/W base
-  // (gray pixels black) and the two overlay planes. Showing it again copies
-  // them instead of reading the thumbnails from SD. 3 x 48 KB per position,
-  // kept until the artwork changes or Home exits.
+  // A position's artwork is drawn once into PSRAM frames: the B/W base (gray
+  // pixels black) and the two overlay planes. The planes leave the centre
+  // outline untinted, and the outline is thicker while the carousel row is
+  // selected, so each selection state gets its own pair; the base serves both.
+  // Showing a position again copies its frames instead of reading the
+  // thumbnails from SD. Up to 5 x 48 KB per position, kept until Home exits.
   struct FourToneFrames {
-    int centerIdx = -1;  // -1 = empty
-    bool selected = false;
+    // Whether the centre cover has a four-tone thumbnail: -1 not checked yet.
+    int8_t hasArt = -1;
+    bool baseReady = false;
+    std::array<bool, 2> planesReady{};  // indexed by selection state
     HeapByteBuffer base;
-    HeapByteBuffer lsb;
-    HeapByteBuffer msb;
+    std::array<HeapByteBuffer, 2> lsb;
+    std::array<HeapByteBuffer, 2> msb;
+  };
+  // The frames one render shows; all null when four tones are not available.
+  struct FourTonePicture {
+    const uint8_t* base = nullptr;
+    const uint8_t* lsb = nullptr;
+    const uint8_t* msb = nullptr;
   };
   std::array<FourToneFrames, kMaxCachedBooks> fourToneFrames;
   uint64_t fourToneFramesKey = 0;
@@ -113,7 +123,8 @@ class HomeActivity final : public Activity {
   int fourToneCenterIdx = -1;
   bool fourToneSelected = false;
   uint64_t fourToneKeyHash = 0;
-  // Stops retrying after a pass could not start (no PSRAM for its frames).
+  // Set for the rest of the visit once four tones could not be shown (no
+  // PSRAM for the frames, or the pass could not start).
   bool fourToneUnavailable = false;
   bool carouselFramesInverted = false;
   bool carouselWarmupPending = false;
@@ -144,7 +155,9 @@ class HomeActivity final : public Activity {
   void freeCoverBuffer();     // Free the stored cover buffer
   void invalidateCoverCache();
   void invalidatePolarityMismatchedCaches();
-  void preRenderCarouselFrames();
+  // renderViewedFrame = false only prepares the snapshot cache and leaves the
+  // viewed position's frame to be loaded when it is first needed.
+  void preRenderCarouselFrames(bool renderViewedFrame = true);
   void freeCarouselFrames();
   bool allocateCarouselFrameSlots(int targetFrameCount);
   bool saveCarouselFrameToDisk(uint64_t cacheKeyHash, int bookCount, int bookIdx, int slotIdx);
@@ -152,8 +165,9 @@ class HomeActivity final : public Activity {
   int chooseCarouselEvictionSlot(int centerIdx, int bookCount,
                                  std::optional<int> protectedBookIdx = std::nullopt) const;
   void renderCarouselFrameToCurrentBuffer(int bookIdx);
-  bool canShowFourToneCovers(int centerIdx) const;
-  const FourToneFrames* prepareFourToneFrames(const Rect& coverRect, int centerIdx, bool selected);
+  FourToneFrames* fourToneFramesFor(int centerIdx);
+  bool canShowFourToneCovers(int centerIdx);
+  FourTonePicture prepareFourToneFrames(const Rect& coverRect, int centerIdx, bool selected);
   void invalidateFourToneFrames();
   void resetFourToneCovers();
   void renderCarouselFrame(int bookIdx, int slotIdx);

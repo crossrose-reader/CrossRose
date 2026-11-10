@@ -489,7 +489,7 @@ static void convertScanlineToGray(const PngDecodeContext& ctx, uint8_t* grayRow)
 
 bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOut, int targetWidth, int targetHeight,
                                                    const Output output, bool crop, bool adaptiveContain,
-                                                   ImageToneProfile toneProfile) {
+                                                   ImageToneProfile toneProfile, const int maxTargetHeight) {
   const bool oneBit = output == Output::OneBit;
   const bool gray8 = output == Output::Gray8;
   // Verify PNG signature
@@ -660,6 +660,10 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
       crop && adaptiveContain &&
       shouldContainAdaptive(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight);
   const bool cropOutput = crop && !containInsteadOfCrop;
+  if (cropOutput) {
+    targetHeight =
+        aspectFillHeight(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight, maxTargetHeight);
+  }
   const OutputGeometry geometry =
       calculateOutputGeometry(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight, cropOutput);
   const int outWidth = geometry.outWidth;
@@ -905,6 +909,7 @@ bool PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(FsFile& pngFile, Print& b
 }
 
 bool PngToBmpConverter::pngFileToGray8BmpStreamWithSize(FsFile& pngFile, Print& bmpOut, int targetWidth,
-                                                        int targetHeight) {
-  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false);
+                                                        int targetHeight, const int maxTargetHeight) {
+  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false,
+                                    ImageToneProfile::Legacy, maxTargetHeight);
 }

@@ -12,40 +12,38 @@
 namespace CarouselCoverArt {
 namespace {
 
-struct Target {
-  int width;
-  int height;
-  // Zero keeps the output's aspect; the side thumbnail is squeezed instead.
-  int cropAspectWidth;
-  int cropAspectHeight;
-  ThumbnailFormat format;
-};
+// The centre thumbnail keeps its own aspect. The side thumbnail takes the
+// side cover's framing and squeezes it to the drawn width.
+constexpr ThumbnailSpec kCenter{LyraCarouselTheme::kCenterThumbW, LyraCarouselTheme::kCenterThumbH, 0, 0,
+                                ThumbnailFormat::OneBit};
+constexpr ThumbnailSpec kCenterFourTone{LyraCarouselTheme::kCenterThumbW, LyraCarouselTheme::kCenterThumbH, 0, 0,
+                                        ThumbnailFormat::FourTone};
+constexpr ThumbnailSpec kSide{LyraCarouselTheme::kSideThumbW, LyraCarouselTheme::kSideThumbH,
+                              LyraCarouselTheme::kSideCoverW, LyraCarouselTheme::kSideCoverH, ThumbnailFormat::OneBit};
+constexpr ThumbnailSpec kSideFourTone{LyraCarouselTheme::kSideThumbW, LyraCarouselTheme::kSideThumbH,
+                                      LyraCarouselTheme::kSideCoverW, LyraCarouselTheme::kSideCoverH,
+                                      ThumbnailFormat::FourTone};
 
-constexpr Target kCenter{LyraCarouselTheme::kCenterThumbW, LyraCarouselTheme::kCenterThumbH, 0, 0,
-                         ThumbnailFormat::OneBit};
-constexpr Target kCenterFourTone{LyraCarouselTheme::kCenterThumbW, LyraCarouselTheme::kCenterThumbH, 0, 0,
-                                 ThumbnailFormat::FourTone};
-constexpr Target kSide{LyraCarouselTheme::kSideThumbW, LyraCarouselTheme::kSideThumbH, LyraCarouselTheme::kSideCoverW,
-                       LyraCarouselTheme::kSideCoverH, ThumbnailFormat::OneBit};
-constexpr Target kSideFourTone{LyraCarouselTheme::kSideThumbW, LyraCarouselTheme::kSideThumbH,
-                               LyraCarouselTheme::kSideCoverW, LyraCarouselTheme::kSideCoverH,
-                               ThumbnailFormat::FourTone};
-
-std::string pathFor(const RecentBook& book, const Target& target) {
+std::string pathFor(const RecentBook& book, const ThumbnailSpec& spec) {
   // No legacy fallback: these are the names thumbnails are written under.
-  return thumbnailVariantPath(UITheme::getCoverThumbPath(book.coverBmpPath, target.width, target.height, false),
-                              target.format);
+  return thumbnailVariantPath(UITheme::getCoverThumbPath(book.coverBmpPath, spec.width, spec.height, false),
+                              spec.format);
 }
 
-bool exists(const RecentBook& book, const Target& target) {
-  const std::string path = pathFor(book, target);
+bool exists(const RecentBook& book, const ThumbnailSpec& spec) {
+  const std::string path = pathFor(book, spec);
   return !path.empty() && Storage.exists(path.c_str());
 }
 
-bool derive(const RecentBook& book, const std::string& sourcePath, const Target& target) {
-  const std::string path = pathFor(book, target);
-  if (path.empty()) return false;
-  if (Storage.exists(path.c_str())) return true;
+enum class Derived : uint8_t { Existing, Written, Failed };
+
+Derived derive(const RecentBook& book, const std::string& sourcePath, const ThumbnailSpec& spec) {
+  const std::string path = pathFor(book, spec);
+  if (path.empty()) {
+    LOG_ERR("HOME", "carousel: no thumbnail path for %s", book.path.c_str());
+    return Derived::Failed;
+  }
+  if (Storage.exists(path.c_str())) return Derived::Existing;
 
   // SdFat cannot rename over a file, and a thumbnail that exists is trusted,
   // so write to a temporary name and publish only a complete file.
@@ -55,15 +53,14 @@ bool derive(const RecentBook& book, const std::string& sourcePath, const Target&
   FsFile source;
   if (!Storage.openFileForRead("HOME", sourcePath, source)) {
     LOG_ERR("HOME", "carousel: cannot open thumbnail source %s", sourcePath.c_str());
-    return false;
+    return Derived::Failed;
   }
   FsFile out;
   if (!Storage.openFileForWrite("HOME", tmpPath, out)) {
     LOG_ERR("HOME", "carousel: cannot create %s", tmpPath.c_str());
     source.close();
-    return false;
+    return Derived::Failed;
   }
-  const ThumbnailSpec spec{target.width, target.height, target.cropAspectWidth, target.cropAspectHeight, target.format};
   bool ok = deriveThumbnailBmp(source, out, spec);
   source.close();
   ok = out.close() && ok;
@@ -72,7 +69,7 @@ bool derive(const RecentBook& book, const std::string& sourcePath, const Target&
     ok = false;
   }
   if (!ok) Storage.remove(tmpPath.c_str());
-  return ok;
+  return ok ? Derived::Written : Derived::Failed;
 }
 
 }  // namespace
@@ -87,15 +84,25 @@ bool needsThumbnails(const RecentBook& book) {
   return fourToneEnabled() && !exists(book, kSideFourTone);
 }
 
-bool deriveMissing(const RecentBook& book, const std::string& sourcePath, const bool graySource) {
-  bool ok = true;
-  if (graySource) {
-    ok = derive(book, sourcePath, kCenter) && ok;
-    if (fourToneEnabled()) ok = derive(book, sourcePath, kCenterFourTone) && ok;
-  }
-  ok = derive(book, sourcePath, kSide) && ok;
-  if (fourToneEnabled()) ok = derive(book, sourcePath, kSideFourTone) && ok;
-  return ok;
+DeriveResult deriveMissing(const RecentBook& book, const std::string& sourcePath, const Source source) {
+  DeriveResult result;
+  const auto want = [&](const ThumbnailSpec& spec) {
+    const Derived derived = derive(book, sourcePath, spec);
+    if (derived == Derived::Written) result.changed = true;
+    if (derived == Derived::Failed) result.complete = false;
+    return derived != Derived::Failed;
+  };
+
+  // Black and white first: every build draws them.
+  if (source == Source::Gray) want(kCenter);
+  want(kSide);
+  if (!fourToneEnabled() || source == Source::OneBitStandIn) return result;
+
+  // The four-tone side goes last: needsThumbnails() reads it as the mark that
+  // the four-tone set is complete, so it waits for the four-tone centre.
+  if (source == Source::Gray && !want(kCenterFourTone)) return result;
+  want(kSideFourTone);
+  return result;
 }
 
 }  // namespace CarouselCoverArt

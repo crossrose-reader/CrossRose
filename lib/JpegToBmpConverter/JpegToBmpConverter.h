@@ -12,9 +12,11 @@ class ZipFile;
 class JpegToBmpConverter {
   // TwoBit is the tone-profiled cover format; the others are thumbnail formats.
   enum class Output : uint8_t { TwoBit, OneBit, Gray8 };
+  // maxTargetHeight: see jpegFileToGray8BmpStreamWithSize().
   static bool jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight,
                                           Output output, bool crop = true, bool adaptiveContain = false,
-                                          ImageToneProfile toneProfile = ImageToneProfile::Legacy);
+                                          ImageToneProfile toneProfile = ImageToneProfile::Legacy,
+                                          int maxTargetHeight = 0);
 
  public:
   static bool jpegFileToBmpStream(FsFile& jpegFile, Print& bmpOut, bool crop = true,
@@ -25,5 +27,9 @@ class JpegToBmpConverter {
                                               bool adaptiveContain = false);
   // Convert to an undithered 8-bit grayscale BMP, cropped to fill the target
   // size. Thumbnails in the display formats are derived from this source.
-  static bool jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight);
+  // With maxTargetHeight above targetHeight, a cover narrower than the target
+  // keeps its own aspect up to that height instead of losing its top and
+  // bottom, so narrower crops can still be taken from the result.
+  static bool jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight,
+                                               int maxTargetHeight = 0);
 };

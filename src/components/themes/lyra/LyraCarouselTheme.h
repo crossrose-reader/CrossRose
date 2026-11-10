@@ -53,6 +53,10 @@ class LyraCarouselTheme : public LyraTheme {
   // and only drops rows towards the shorter edge.
   static constexpr int kSideThumbW = kNearSideW;
   static constexpr int kSideThumbH = kNearSideInnerH;
+  // Tallest 8-bit source both thumbnails are derived from: kCenterThumbW wide
+  // with the side's narrower kSideCoverW:kSideCoverH framing, so a narrow
+  // cover keeps the rows its side crop needs.
+  static constexpr int kThumbSourceMaxH = (kCenterThumbW * kSideCoverH + kSideCoverW - 1) / kSideCoverW;  // 578
 
   // OneBit is the ordinary black-and-white artwork. FourToneBase and
   // FourTonePlane are the passes of a four-tone picture (see

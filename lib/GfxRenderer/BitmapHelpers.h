@@ -29,6 +29,19 @@ constexpr GrayPlanePixel grayPlanePixel(uint8_t level, bool msb, bool absolute) 
 
 enum class BmpRowOrder { BottomUp, TopDown };
 
+// Height of a crop-to-fill output `targetWidth` wide that keeps the source's
+// own aspect, held between minHeight and maxHeight: a source wider than
+// targetWidth:minHeight is still cropped to that aspect, and one narrower than
+// targetWidth:maxHeight to that one. minHeight when maxHeight is not above it.
+inline int aspectFillHeight(const int srcWidth, const int srcHeight, const int targetWidth, const int minHeight,
+                            const int maxHeight) {
+  if (maxHeight <= minHeight || srcWidth <= 0 || srcHeight <= 0 || targetWidth <= 0) return minHeight;
+  const int64_t height = (static_cast<int64_t>(targetWidth) * srcHeight + srcWidth / 2) / srcWidth;
+  if (height < minHeight) return minHeight;
+  if (height > maxHeight) return maxHeight;
+  return static_cast<int>(height);
+}
+
 // Populates a 1-bit BMP header in the provided memory.
 void createBmpHeader(BmpHeader* bmpHeader, int width, int height, BmpRowOrder rowOrder);
 

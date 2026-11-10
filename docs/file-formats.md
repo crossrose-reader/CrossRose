@@ -1003,13 +1003,23 @@ A thumbnail path can carry a format suffix before the extension:
 - `_g4`: 2 bpp, palette black / 85 / 170 / white. Used for four-tone cover art
   on panels that support it (Boox Picco).
 - `_g8`: 8 bpp grayscale source. Temporary: written while a cover is decoded,
-  used to derive the other formats, then deleted.
+  used to derive the other formats, then deleted. One left behind by an
+  interrupted derivation is never reused. Carousel's is named
+  `thumb_296x468_v3_g8.bmp` and is 296 pixels wide and 468 to 578 high: the
+  cover is cropped only as far as both the centre (296:468) and the side
+  (200:390) framings need, so each crop comes from the cover itself.
 
 Carousel keeps, per book, `thumb_296x468_v3.bmp` and `thumb_75x417_v3.bmp`
 (the centred 200:390 crop of the cover, squeezed to the side cover's drawn
-width before dithering), plus the `_g4` form of both on four-tone builds. XTC
-books use the same suffixes on their unversioned `thumb_<W>x<H>.bmp` names;
-their side thumbnails are derived from the one-bit centre thumbnail.
+width before dithering), plus the `_g4` form of both on four-tone builds. The
+side `_g4` thumbnail is written last, and only once the centre `_g4` exists,
+so Home regenerates a book's thumbnails until it is present. GIF covers have
+no `_g8` source: their side thumbnails, `_g4` included, are derived from the
+one-bit centre thumbnail and they get no centre `_g4`. When a JPEG or PNG
+cover's `_g8` source cannot be written, the one-bit thumbnails are made the
+same way but the `_g4` ones are left for the next visit. XTC books use the
+same suffixes on their unversioned `thumb_<W>x<H>.bmp` names; like GIF
+covers, their side thumbnails are derived from the one-bit centre thumbnail.
 
 ## EPUB decoded-image revision 2 (2.0.0)
 

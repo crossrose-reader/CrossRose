@@ -708,35 +708,43 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
               progress++;
               continue;
             }
-            bool success = false;
+            CarouselCoverArt::DeriveResult derived{false, false};
             const auto thumbStart = millis();
-            if (epub.generateThumbSourceBmp(centerW, centerH, &renderer, SETTINGS.getReaderFontId())) {
+            if (epub.generateThumbSourceBmp(centerW, centerH, LyraCarouselTheme::kThumbSourceMaxH, &renderer,
+                                            SETTINGS.getReaderFontId())) {
               const std::string sourcePath = epub.getThumbSourceBmpPath(centerW, centerH);
-              success = CarouselCoverArt::deriveMissing(book, sourcePath, /*graySource=*/true);
-              // 139 KB per book, and only needed while deriving.
+              derived = CarouselCoverArt::deriveMissing(book, sourcePath, CarouselCoverArt::Source::Gray);
+              // Up to 172 KB per book, and only needed while deriving.
               Storage.remove(sourcePath.c_str());
-            } else if (epub.generateThumbBmp(centerW, centerH, &renderer, SETTINGS.getReaderFontId())) {
+            } else {
               // GIF covers have no 8-bit source: squeeze the side thumbnails
-              // out of the one-bit centre thumbnail instead.
-              success = CarouselCoverArt::deriveMissing(book, centerPath, /*graySource=*/false);
+              // out of the one-bit centre thumbnail instead. For a JPEG or PNG
+              // cover the one-bit centre only stands in until the source can be
+              // written (a full SD card, say), and four tones are retried.
+              const bool hadCenter = Storage.exists(centerPath.c_str());
+              if (epub.generateThumbBmp(centerW, centerH, &renderer, SETTINGS.getReaderFontId())) {
+                derived =
+                    CarouselCoverArt::deriveMissing(book, centerPath,
+                                                    epub.coverHasGraySource() ? CarouselCoverArt::Source::OneBitStandIn
+                                                                              : CarouselCoverArt::Source::OneBitCover);
+                derived.changed = derived.changed || !hadCenter;
+              }
             }
             LOG_INF("HOME", "carousel: thumbnails for book %u %s in %lums", static_cast<unsigned>(bookIdx),
-                    success ? "ready" : "failed", millis() - thumbStart);
-            if (!success) {
-              if (!epub.hasCoverImage()) markCoverMissing(book);
-            } else if (bookIdx < bookUpdated.size()) {
-              bookUpdated[bookIdx] = true;
-            }
+                    derived.complete ? "ready" : "failed", millis() - thumbStart);
+            if (!derived.complete && !epub.hasCoverImage()) markCoverMissing(book);
+            if (derived.changed && bookIdx < bookUpdated.size()) bookUpdated[bookIdx] = true;
             coverRendered = false;
             requestUpdate();
           } else if (FsHelpers::hasXtcExtension(book.path)) {
             Xtc xtc(book.path, "/.crosspoint");
             if (xtc.load()) {
               showLoadingProgress(10 + progress * progressIncrement);
-              const bool success = xtc.generateThumbBmp(centerW, centerH) &&
-                                   CarouselCoverArt::deriveMissing(book, centerPath, /*graySource=*/false);
-              if (success) {
-                if (bookIdx < bookUpdated.size()) bookUpdated[bookIdx] = true;
+              const bool hadCenter = Storage.exists(centerPath.c_str());
+              if (xtc.generateThumbBmp(centerW, centerH)) {
+                const auto derived =
+                    CarouselCoverArt::deriveMissing(book, centerPath, CarouselCoverArt::Source::OneBitCover);
+                if ((derived.changed || !hadCenter) && bookIdx < bookUpdated.size()) bookUpdated[bookIdx] = true;
               }
               coverRendered = false;
               requestUpdate();
@@ -1236,61 +1244,92 @@ void HomeActivity::renderCarouselFrameToCurrentBuffer(int bookIdx) {
                           frameBufferRestored, []() { return true; });
 }
 
-bool HomeActivity::canShowFourToneCovers(const int centerIdx) const {
-  return CarouselCoverArt::fourToneEnabled() && !fourToneUnavailable && renderer.supportsGrayArtwork() &&
-         LyraCarouselTheme::hasFourToneCoverArt(recentBooks, centerIdx);
-}
-
-const HomeActivity::FourToneFrames* HomeActivity::prepareFourToneFrames(const Rect& coverRect, const int centerIdx,
-                                                                        const bool selected) {
+HomeActivity::FourToneFrames* HomeActivity::fourToneFramesFor(const int centerIdx) {
   if (centerIdx < 0 || centerIdx >= kMaxCachedBooks) return nullptr;
+  // The frames hold the artwork of one set of books and thumbnails.
   if (fourToneFramesKey != gCarouselCache.keyHash) {
     invalidateFourToneFrames();
     fourToneFramesKey = gCarouselCache.keyHash;
   }
-  FourToneFrames& frames = fourToneFrames[centerIdx];
-  if (frames.centerIdx == centerIdx && frames.selected == selected) return &frames;
+  return &fourToneFrames[centerIdx];
+}
 
-  const size_t size = renderer.getBufferSize();
-  // Framebuffer-sized artwork kept across renders: far too large for the
-  // stack, and only built on PSRAM boards (CROSSINK_APP_CAP_GRAY_COVER_ART).
-  if (!frames.base) frames.base = makePsramByteBufferNoThrow(size);
-  if (!frames.lsb) frames.lsb = makePsramByteBufferNoThrow(size);
-  if (!frames.msb) frames.msb = makePsramByteBufferNoThrow(size);
-  if (!frames.base || !frames.lsb || !frames.msb) {
-    LOG_ERR("HOME", "carousel: no PSRAM for four-tone frames (%u bytes x3)", static_cast<unsigned>(size));
-    frames = FourToneFrames{};
-    return nullptr;
-  }
+bool HomeActivity::canShowFourToneCovers(const int centerIdx) {
+  FourToneFrames* frames = CarouselCoverArt::fourToneEnabled() && !fourToneUnavailable && renderer.supportsGrayArtwork()
+                               ? fourToneFramesFor(centerIdx)
+                               : nullptr;
+  // Always null on builds without CROSSINK_APP_CAP_GRAY_COVER_ART.
+  // cppcheck-suppress knownConditionTrueFalse
+  if (!frames) return false;
+  // Checked once per position rather than on every render: the thumbnails
+  // only change in loadRecentCovers(), which invalidates the frames.
+  if (frames->hasArt < 0) frames->hasArt = LyraCarouselTheme::hasFourToneCoverArt(recentBooks, centerIdx) ? 1 : 0;
+  return frames->hasArt > 0;
+}
 
-  using CoverArtPass = LyraCarouselTheme::CoverArtPass;
-  const auto& carouselTheme = static_cast<const LyraCarouselTheme&>(GUI);
-  struct Pass {
-    GfxRenderer::RenderMode mode;
-    uint8_t clear;
-    CoverArtPass art;
-    uint8_t* target;
-  };
-  const Pass passes[] = {
-      {GfxRenderer::BW, 0xFF, CoverArtPass::FourToneBase, frames.base.get()},
-      {GfxRenderer::GRAYSCALE_LSB, 0x00, CoverArtPass::FourTonePlane, frames.lsb.get()},
-      {GfxRenderer::GRAYSCALE_MSB, 0x00, CoverArtPass::FourTonePlane, frames.msb.get()},
-  };
-  for (const Pass& pass : passes) {
-    renderer.setRenderMode(pass.mode);
-    renderer.clearScreen(pass.clear);
-    carouselTheme.drawCoverArt(renderer, coverRect, recentBooks, centerIdx, pass.art, selected);
-    memcpy(pass.target, renderer.getFrameBuffer(), size);
+HomeActivity::FourTonePicture HomeActivity::prepareFourToneFrames(const Rect& coverRect, const int centerIdx,
+                                                                  const bool selected) {
+  FourToneFrames* found = fourToneFramesFor(centerIdx);
+  if (!found) return {};
+  FourToneFrames& frames = *found;
+  const size_t plane = selected ? 1 : 0;
+  const bool drawBase = !frames.baseReady;
+  const bool drawPlanes = !frames.planesReady[plane];
+
+  if (drawBase || drawPlanes) {
+    const size_t size = renderer.getBufferSize();
+    // Framebuffer-sized artwork kept across renders: far too large for the
+    // stack, and only built on PSRAM boards (CROSSINK_APP_CAP_GRAY_COVER_ART).
+    // A selection state's planes are allocated when it is first shown.
+    if (!frames.base) frames.base = makePsramByteBufferNoThrow(size);
+    if (!frames.lsb[plane]) frames.lsb[plane] = makePsramByteBufferNoThrow(size);
+    if (!frames.msb[plane]) frames.msb[plane] = makePsramByteBufferNoThrow(size);
+    if (!frames.base || !frames.lsb[plane] || !frames.msb[plane]) {
+      LOG_ERR("HOME", "carousel: no PSRAM for four-tone frames (%u bytes x3); black-and-white covers for this visit",
+              static_cast<unsigned>(size));
+      // Retrying on every render would only fail again. Free every position's
+      // frames so the black-and-white snapshot can still be allocated.
+      fourToneUnavailable = true;
+      resetFourToneCovers();
+      return {};
+    }
+
+    using CoverArtPass = LyraCarouselTheme::CoverArtPass;
+    const auto& carouselTheme = static_cast<const LyraCarouselTheme&>(GUI);
+    struct Pass {
+      bool needed;
+      GfxRenderer::RenderMode mode;
+      uint8_t clear;
+      CoverArtPass art;
+      uint8_t* target;
+    };
+    // The base does not depend on the selection; only the planes do.
+    const Pass passes[] = {
+        {drawBase, GfxRenderer::BW, 0xFF, CoverArtPass::FourToneBase, frames.base.get()},
+        {drawPlanes, GfxRenderer::GRAYSCALE_LSB, 0x00, CoverArtPass::FourTonePlane, frames.lsb[plane].get()},
+        {drawPlanes, GfxRenderer::GRAYSCALE_MSB, 0x00, CoverArtPass::FourTonePlane, frames.msb[plane].get()},
+    };
+    for (const Pass& pass : passes) {
+      if (!pass.needed) continue;
+      renderer.setRenderMode(pass.mode);
+      renderer.clearScreen(pass.clear);
+      carouselTheme.drawCoverArt(renderer, coverRect, recentBooks, centerIdx, pass.art, selected);
+      memcpy(pass.target, renderer.getFrameBuffer(), size);
+    }
+    renderer.setRenderMode(GfxRenderer::BW);
+    frames.baseReady = true;
+    frames.planesReady[plane] = true;
   }
-  renderer.setRenderMode(GfxRenderer::BW);
-  frames.centerIdx = centerIdx;
-  frames.selected = selected;
-  return &frames;
+  return {frames.base.get(), frames.lsb[plane].get(), frames.msb[plane].get()};
 }
 
 void HomeActivity::invalidateFourToneFrames() {
-  // Keep the buffers: the next position reuses them.
-  for (auto& frames : fourToneFrames) frames.centerIdx = -1;
+  // Keep the buffers: the redrawn artwork reuses them.
+  for (auto& frames : fourToneFrames) {
+    frames.hasArt = -1;
+    frames.baseReady = false;
+    frames.planesReady = {};
+  }
 }
 
 void HomeActivity::resetFourToneCovers() {
@@ -1427,7 +1466,7 @@ int HomeActivity::chooseCarouselEvictionSlot(int centerIdx, int bookCount, std::
   return evictSlot;
 }
 
-void HomeActivity::preRenderCarouselFrames() {
+void HomeActivity::preRenderCarouselFrames(const bool renderViewedFrame) {
   const int bookCount = static_cast<int>(recentBooks.size());
   if (bookCount == 0) return;
 
@@ -1455,8 +1494,10 @@ void HomeActivity::preRenderCarouselFrames() {
   if (!allocateCarouselFrameSlots(1)) return;
 
   const int initialBookIdx = getHighlightedBookIndex();
-  const bool loaded = loadCarouselFrameFromDisk(newKeyHash, bookCount, initialBookIdx, 0);
-  if (!loaded) renderCarouselFrame(initialBookIdx, 0);
+  // Otherwise the slot stays empty, and the fast path loads or draws a
+  // position's snapshot when it first needs one.
+  const bool loaded = renderViewedFrame && loadCarouselFrameFromDisk(newKeyHash, bookCount, initialBookIdx, 0);
+  if (renderViewedFrame && !loaded) renderCarouselFrame(initialBookIdx, 0);
   gCarouselCache.lastCenterIdx = initialBookIdx;
   gCarouselCache.key = newKey;
   gCarouselCache.keyHash = newKeyHash;
@@ -1464,7 +1505,7 @@ void HomeActivity::preRenderCarouselFrames() {
   carouselFramesInverted = SETTINGS.screenInverted != 0;
   coverRendered = false;
   coverBufferStored = false;
-  if (!loaded) saveCarouselFrameToDisk(newKeyHash, bookCount, initialBookIdx, 0);
+  if (renderViewedFrame && !loaded) saveCarouselFrameToDisk(newKeyHash, bookCount, initialBookIdx, 0);
 }
 
 void HomeActivity::loop() {
@@ -2234,14 +2275,16 @@ void HomeActivity::render(RenderLock&&) {
   }
 
   // Four-tone covers are composed in the fast path below. When they can be
-  // shown, prepare its snapshot before the first paint, so Home does not
-  // show black-and-white covers first. canShowFourToneCovers() is constant
-  // false on builds without CROSSINK_APP_CAP_GRAY_COVER_ART, hence the
-  // knownConditionTrueFalse suppressions here and in the fast path.
+  // shown, set up its snapshot cache before the first paint, so Home does not
+  // show black-and-white covers first. The viewed position draws from its
+  // four-tone frames, so its black-and-white snapshot is not built.
+  // canShowFourToneCovers() is constant false on builds without
+  // CROSSINK_APP_CAP_GRAY_COVER_ART, hence the knownConditionTrueFalse
+  // suppressions here and in the fast path.
   // cppcheck-suppress knownConditionTrueFalse
   if (carouselWarmupPending && !carouselFramesReady && canShowFourToneCovers(getHighlightedBookIndex())) {
     carouselWarmupPending = false;
-    preRenderCarouselFrames();
+    preRenderCarouselFrames(/*renderViewedFrame=*/false);
   }
 
   // Fast path: restore artwork and draw current progress and controls.
@@ -2259,12 +2302,13 @@ void HomeActivity::render(RenderLock&&) {
     // then not needed for this position.
     [[maybe_unused]] const auto fourToneStart = millis();
     // cppcheck-suppress knownConditionTrueFalse
-    const FourToneFrames* fourTone = frameBuffer && canShowFourToneCovers(centerIdx)
+    const FourTonePicture fourTone = frameBuffer && canShowFourToneCovers(centerIdx)
                                          ? prepareFourToneFrames(coverRect, centerIdx, inCarouselRow)
-                                         : nullptr;
+                                         : FourTonePicture{};
+    const bool hasFourTone = fourTone.base != nullptr;
 
     // cppcheck-suppress knownConditionTrueFalse
-    if (frameBuffer && !fourTone && slotIdx < 0 && gCarouselCache.keyHash != 0 && bookCount > 0) {
+    if (frameBuffer && !hasFourTone && slotIdx < 0 && gCarouselCache.keyHash != 0 && bookCount > 0) {
       const int evictSlot = chooseCarouselEvictionSlot(centerIdx, bookCount);
       if (evictSlot >= 0) {
         if (!loadCarouselFrameFromDisk(gCarouselCache.keyHash, bookCount, centerIdx, evictSlot)) {
@@ -2276,14 +2320,14 @@ void HomeActivity::render(RenderLock&&) {
     }
 
     // cppcheck-suppress knownConditionTrueFalse
-    if (frameBuffer && (fourTone || (slotIdx >= 0 && carouselFrames[slotIdx]))) {
+    if (frameBuffer && (hasFourTone || (slotIdx >= 0 && carouselFrames[slotIdx]))) {
       const auto& carouselTheme = static_cast<const LyraCarouselTheme&>(GUI);
       // The same picture is already on the panel: one fast refresh keeps its
       // gray ink. Any other waveform would turn the gray parts black.
-      const bool keepFourTone = fourTone && fourToneShown && renderer.hasGrayArtwork() &&
+      const bool keepFourTone = hasFourTone && fourToneShown && renderer.hasGrayArtwork() &&
                                 initialRefreshMode == HalDisplay::FAST_REFRESH && fourToneCenterIdx == centerIdx &&
                                 fourToneSelected == inCarouselRow && fourToneKeyHash == gCarouselCache.keyHash;
-      memcpy(frameBuffer, fourTone ? fourTone->base.get() : carouselFrames[slotIdx], renderer.getBufferSize());
+      memcpy(frameBuffer, hasFourTone ? fourTone.base : carouselFrames[slotIdx], renderer.getBufferSize());
       LyraCarouselTheme::setPreRenderIndex(centerIdx);
 
       // The snapshot contains artwork only; all changing UI uses current state.
@@ -2303,8 +2347,8 @@ void HomeActivity::render(RenderLock&&) {
       const auto labels = mappedInput.mapLabels(tr(STR_READ), tr(STR_SELECT), tr(STR_DIR_LEFT), tr(STR_DIR_RIGHT));
       GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
-      if (fourTone && !keepFourTone) {
-        if (!renderer.displayGrayArtwork(fourTone->lsb.get(), fourTone->msb.get(), initialRefreshMode)) {
+      if (hasFourTone && !keepFourTone) {
+        if (!renderer.displayGrayArtwork(fourTone.lsb, fourTone.msb, initialRefreshMode)) {
           // The framebuffer holds the base frame, which is not fit to show on
           // its own. Give up on four tones and repaint in black and white.
           LOG_ERR("HOME", "carousel: four-tone pass unavailable; keeping black-and-white covers");

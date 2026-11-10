@@ -1464,8 +1464,16 @@ std::string Epub::getThumbSourceBmpPath(int width, int height) const {
   return thumbnailVariantPath(getThumbBmpPathForDimensions(cachePath, width, height), ThumbnailFormat::Gray8);
 }
 
-bool Epub::generateThumbSourceBmp(int width, int height, const GfxRenderer* renderer, const int readerFontId) const {
-  return generateThumbBmpInternal(width, height, false, renderer, readerFontId, nullptr, ThumbnailFormat::Gray8);
+bool Epub::generateThumbSourceBmp(int width, int height, const int maxHeight, const GfxRenderer* renderer,
+                                  const int readerFontId) const {
+  return generateThumbBmpInternal(width, height, false, renderer, readerFontId, nullptr, ThumbnailFormat::Gray8,
+                                  maxHeight);
+}
+
+bool Epub::coverHasGraySource() const {
+  if (!hasCoverImage()) return false;
+  const std::string& href = bookMetadataCache->coreMetadata.coverItemHref;
+  return FsHelpers::hasJpgExtension(href) || FsHelpers::hasPngExtension(href);
 }
 
 std::string Epub::getCachedCoverImagePath(const std::string& coverImageHref) const {
@@ -1519,7 +1527,7 @@ bool Epub::ensureCachedCoverImage(const std::string& coverImageHref, std::string
 
 bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveContain, const GfxRenderer* renderer,
                                     const int readerFontId, const std::string* coverHrefOverride,
-                                    const ThumbnailFormat format) const {
+                                    const ThumbnailFormat format, const int sourceMaxHeight) const {
   if (height <= 0) {
     LOG_DBG("EBP", "Using default thumb BMP height for requested dimensions: %dx%d", width, height);
   }
@@ -1530,8 +1538,12 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
                                            : getThumbBmpPathForDimensions(cachePath, width, height),
                            format);
 
-  // Already generated with matching dimensions, return true
-  if (cachedBmpMatchesDimensions(thumbPath, width, height, adaptiveContain)) {
+  if (gray8) {
+    // The 8-bit source is a temporary file. One still here is left over from
+    // an interrupted derivation and may be truncated, so it is never reused.
+    if (Storage.exists(thumbPath.c_str())) Storage.remove(thumbPath.c_str());
+  } else if (cachedBmpMatchesDimensions(thumbPath, width, height, adaptiveContain)) {
+    // Already generated with matching dimensions
     return true;
   }
 
@@ -1563,7 +1575,7 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail JPG decode");
     const bool success = gray8 ? JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(
-                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT)
+                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight)
                                : JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(
                                      coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
     // Explicitly close() files before leaving the converter path.
@@ -1595,7 +1607,7 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail PNG decode");
     const bool success = gray8 ? PngToBmpConverter::pngFileToGray8BmpStreamWithSize(
-                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT)
+                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight)
                                : PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(
                                      coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
     // Explicitly close() files before leaving the converter path.

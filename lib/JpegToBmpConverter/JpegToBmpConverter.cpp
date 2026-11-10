@@ -595,7 +595,7 @@ static bool isProgressiveJpeg(FsFile& file) {
 // Internal implementation with configurable target size and bit depth
 bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight,
                                                      const Output output, bool crop, bool adaptiveContain,
-                                                     ImageToneProfile toneProfile) {
+                                                     ImageToneProfile toneProfile, const int maxTargetHeight) {
   const bool oneBit = output == Output::OneBit;
   const bool gray8 = output == Output::Gray8;
   if (ESP.getFreeHeap() < MIN_FREE_HEAP) {
@@ -644,6 +644,9 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
   const bool containInsteadOfCrop =
       crop && adaptiveContain && shouldContainAdaptive(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight);
   const bool cropOutput = crop && !containInsteadOfCrop;
+  if (cropOutput) {
+    targetHeight = aspectFillHeight(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight, maxTargetHeight);
+  }
   const OutputGeometry geometry =
       calculateOutputGeometry(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight, cropOutput);
   const int outWidth = geometry.outWidth;
@@ -804,6 +807,7 @@ bool JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(FsFile& jpegFile, Print
 }
 
 bool JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth,
-                                                          int targetHeight) {
-  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false);
+                                                          int targetHeight, const int maxTargetHeight) {
+  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false,
+                                     ImageToneProfile::Legacy, maxTargetHeight);
 }
