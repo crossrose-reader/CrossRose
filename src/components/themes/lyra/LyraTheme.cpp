@@ -19,6 +19,7 @@
 #include "components/TouchRegistry.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/icons/powerIcons.h"
 #include "components/icons/readingStatsIcons.h"
 #include "fontIds.h"
 
@@ -48,6 +49,7 @@ int mainMenuIconYOffset(const UIIcon icon) {
     case UIIcon::Transfer:
       return -2;
     case UIIcon::Settings:
+    case UIIcon::Power:
       return -2;
     case UIIcon::Library:
       return -4;
@@ -80,6 +82,8 @@ const freeink::Icon* LyraTheme::iconForName(UIIcon icon, uint32_t size) {
         return &icon_lyra_library_24;
       case UIIcon::Plugins:
         return &icon_puzzle_24;
+      case UIIcon::Power:
+        return &icon_power_24;
       default:
         return nullptr;
     }
@@ -103,6 +107,8 @@ const freeink::Icon* LyraTheme::iconForName(UIIcon icon, uint32_t size) {
         return &icon_lyra_library_32;
       case UIIcon::Plugins:
         return &icon_puzzle_32;
+      case UIIcon::Power:
+        return &icon_power_32;
       case UIIcon::Wifi:
         return &icon_wifi_32;
       case UIIcon::Hotspot:

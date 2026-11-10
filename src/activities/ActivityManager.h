@@ -80,6 +80,9 @@ class ActivityManager {
 #endif
 
   void exitActivity(const RenderLock& lock);
+  // Exit the current activity and every stacked one so they save their state.
+  // Leaves no current activity; the caller installs the final screen.
+  void exitAllActivities(const RenderLock& lock);
 
   // Pending activity to be launched on next loop iteration
   std::unique_ptr<Activity> pendingActivity;
@@ -174,6 +177,8 @@ class ActivityManager {
   void goToReaderAndRunMenuAction(std::string path, uint8_t action);
   void preparePluginSleep();
   void goToSleep(bool fromTimeout = false);
+  // Turn Off / Restart: show the final screen, then save and close every activity.
+  void goToPowerScreen(bool restarting);
   void goToBoot();
   void goToFullScreenMessage(std::string message, EpdFontFamily::Style style = EpdFontFamily::REGULAR);
   void goToCrashReport();

@@ -5466,6 +5466,8 @@ bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
     case CrossPointSettings::SHORT_PWRBTN::SLEEP_ONLY:
     case CrossPointSettings::SHORT_PWRBTN::WAKE_ONLY:
     case CrossPointSettings::SHORT_PWRBTN::FORCE_REFRESH:
+    case CrossPointSettings::SHORT_PWRBTN::TURN_OFF:
+    case CrossPointSettings::SHORT_PWRBTN::RESTART:
     case CrossPointSettings::SHORT_PWRBTN::SHORT_PWRBTN_COUNT:
       return false;
   }

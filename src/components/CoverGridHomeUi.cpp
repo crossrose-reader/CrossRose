@@ -11,6 +11,7 @@
 #include "MappedInputManager.h"
 #include "UITheme.h"
 #include "components/icons/listIcons.h"
+#include "components/icons/powerIcons.h"
 
 namespace fui = freeink::ui;
 namespace {
@@ -231,10 +232,12 @@ void CoverGridHomeUi::drawGrid(UiScreen& screen) {
 }
 
 void CoverGridHomeUi::drawTabs(UiScreen& screen, fui::Rect rect) {
-  static constexpr const freeink::Icon* ICONS[] = {&icon_folder_32, &icon_landmark_32, &icon_puzzle_32,
-                                                   &icon_lyra_transfer_32, &icon_lyra_settings_32};
+  static constexpr const freeink::Icon* ICONS[] = {&icon_folder_32,        &icon_landmark_32,      &icon_puzzle_32,
+                                                   &icon_lyra_transfer_32, &icon_lyra_settings_32, &icon_power_32};
+  static_assert(sizeof(ICONS) / sizeof(ICONS[0]) == std::tuple_size<decltype(tabItems)>::value,
+                "Cover Grid needs one tab slot per icon");
   int count = 0;
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < static_cast<int>(tabItems.size()); ++i) {
     if (i == 2 && !hasPlugins) continue;
     auto& tab = tabItems[count];
     tab.value = books->size() + count;

@@ -6,6 +6,7 @@
 #include <Epub.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
+#include <I18n.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>
 #include <Memory.h>
@@ -13,8 +14,10 @@
 #include <ZipFile.h>
 
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 
+#include "GlobalActions.h"
 #include "OpdsServerStore.h"
 #include "activities/ActivityManager.h"
 #include "activities/home/HomeActivity.h"
@@ -54,6 +57,121 @@ struct PluginCatalogSmokeTest {
         for (int x = 0; x < width; ++x) std::fputc(renderer.isPixelBlack(x, y) ? 0 : 255, file);
       std::fclose(file);
     }
+  }
+  // Render and publish touch targets without writing a capture.
+  static void publish(Activity& activity) {
+    RenderLock lock;
+    TouchRegistry::getInstance().beginFrame();
+    activity.render(std::move(lock));
+    TouchRegistry::getInstance().publish();
+  }
+  // Power is the last Home entry in every theme. Open it by touch or buttons,
+  // check the shared chooser, then cancel with Back. Turn Off and Restart must
+  // never run here: they would end the smoke process.
+  static void verifyHomePowerEntry(HomeActivity& home, const bool byTouch, const std::string& name) {
+    const bool minimal =
+        SETTINGS.uiTheme == CrossPointSettings::MINIMAL || SETTINGS.uiTheme == CrossPointSettings::DASHBOARD;
+    const int savedSelector = home.selectorIndex;
+    const bool savedMinimalOpen = home.minimalMenuOpen;
+    const int savedMinimalIndex = home.minimalMenuIndex;
+    int selector = 0;  // Power's selectorIndex, or its row in the Minimal/Dashboard menu panel
+    int touchId = 0;   // Power's TouchRegistry item id
+    {
+      RenderLock lock;
+      require(!home.quickActionsPopup.isActive() && !isPowerActionPending(), "Home popup open before Power check");
+      if (home.coverGridUi) {
+        selector = touchId = home.getMenuItemCount() - 1;  // the last tab
+      } else if (minimal) {
+        // Library or Browse Files, [Plugins], [saved items], [Reading Stats], File Transfer, Power.
+        selector = touchId = 2 + home.hasPlugins + (home.hasBookmarks || home.hasClippings) + home.hasReadingStats;
+        home.minimalMenuOpen = true;
+      } else {
+        selector = home.getMenuItemCount() - 1;
+        const bool continueInMenu = UITheme::getInstance().getMetrics().homeContinueReadingInMenu;
+        touchId = selector - (continueInMenu ? 0 : home.getVisibleRecentBookCount());
+      }
+    }
+    if (byTouch) {
+#if CROSSINK_APP_CAP_TOUCH
+      publish(home);
+      int tapX = -1, tapY = -1;
+      {
+        RenderLock lock;
+        for (int y = 0; y < renderer.getScreenHeight() && tapX < 0; y += 4) {
+          for (int x = 0; x < renderer.getScreenWidth(); x += 4) {
+            int id = -1;
+            freeink::ui::Interaction hit;
+            const bool found =
+                home.coverGridUi
+                    ? (home.coverGridUi->app.hitPublished(x, y, 1, hit) && hit.value == selector)
+                    : (TouchRegistry::getInstance().hitTest(x, y, TouchRegistry::Item, id) && id == touchId);
+            if (found) {
+              tapX = x;
+              tapY = y;
+              break;
+            }
+          }
+        }
+      }
+      require(tapX >= 0, "Home Power entry has no touch target");
+      mappedInputManager.simulatorInjectTouchDown(tapX, tapY);
+      {
+        RenderLock lock;
+        home.loop();
+      }
+      mappedInputManager.simulatorClearInputFrame();
+      mappedInputManager.simulatorInjectTouchRelease(tapX, tapY);
+      {
+        RenderLock lock;
+        home.loop();
+      }
+      mappedInputManager.simulatorClearInputFrame();
+#else
+      require(false, "Home Power touch check needs a touch build");
+#endif
+    } else {
+      {
+        RenderLock lock;
+        if (minimal) {
+          home.minimalMenuIndex = selector;
+        } else {
+          home.selectorIndex = selector;
+        }
+      }
+      mappedInputManager.simulatorInjectRelease(MappedInputManager::Button::Confirm);
+      {
+        RenderLock lock;
+        home.loop();
+      }
+      mappedInputManager.simulatorClearInputFrame();
+    }
+    {
+      RenderLock lock;
+      require(activityManager.isCurrentActivityNamed("Home"), "Home Power entry left Home");
+      require(home.quickActionsPopup.isActive() && home.blocksGlobalInput(), "Home Power entry did not open its menu");
+      require(home.quickActionsPopup.simulatorSelectedIndex() == 0, "Power menu does not preselect Turn Off");
+      require(std::strcmp(home.quickActionsPopup.simulatorOptionLabel(0), tr(STR_TURN_OFF)) == 0 &&
+                  std::strcmp(home.quickActionsPopup.simulatorOptionLabel(1), tr(STR_RESTART)) == 0,
+              "Power menu options are not Turn Off and Restart");
+      require(!isPowerActionPending(), "Opening the Power menu queued a power action");
+    }
+    capture(home, name.c_str());
+    mappedInputManager.simulatorInjectRelease(MappedInputManager::Button::Back);
+    {
+      RenderLock lock;
+      home.loop();
+    }
+    mappedInputManager.simulatorClearInputFrame();
+    {
+      RenderLock lock;
+      require(activityManager.isCurrentActivityNamed("Home"), "Back from the Power menu left Home");
+      require(!home.quickActionsPopup.isActive() && !home.blocksGlobalInput(), "Back did not close the Power menu");
+      require(!isPowerActionPending(), "Cancelling the Power menu queued a power action");
+      home.selectorIndex = savedSelector;
+      home.minimalMenuOpen = savedMinimalOpen;
+      home.minimalMenuIndex = savedMinimalIndex;
+    }
+    publish(home);
   }
   static void select(PluginCatalogActivity& activity, const char* name) {
     RenderLock lock;
@@ -139,7 +257,8 @@ struct PluginCatalogSmokeTest {
         RenderLock lock;
         home.hasReadingStats = home.hasBookmarks = true;
         home.selectorIndex = 0;
-        require(home.getMenuItemCount() == 7, "OPDS still occupies a Home row");
+        // Browse Files, Library, Plugins, Reading Stats, saved items, File Transfer, Settings, Power.
+        require(home.getMenuItemCount() == 8, "OPDS still occupies a Home row");
       }
       capture(home, "home-all-actions");
 #if CROSSINK_APP_CAP_TOUCH
@@ -157,6 +276,8 @@ struct PluginCatalogSmokeTest {
       }
       require(settingsVisible, "Settings missing from first Home page");
 #endif
+      // With every entry shown, Power is the last row (page 2 on Lyra): buttons reach it.
+      verifyHomePowerEntry(home, false, "home-power-all-actions");
       // Two servers exercise the existing picker without making a network request.
       if (OPDS_STORE.getCount() < 2)
         require(OPDS_STORE.addServer({"Second OPDS", "https://second.example.invalid"}), "Second OPDS fixture");
@@ -334,9 +455,18 @@ struct PluginCatalogSmokeTest {
       {
         RenderLock lock;
         require(home.hasPlugins, "Home lost Plugins");
-        require(home.getMenuItemCount() == 5, "Home menu count lost an action");
+        // Browse Files, Library, Plugins, File Transfer, Settings and Power (tabs on Cover Grid).
+        require(home.getMenuItemCount() == 6, "Home menu count lost an action");
       }
       capture(home, ("home-theme-" + std::to_string(homePass / 2)).c_str());
+      {
+        // Carousel ignores physical Confirm on touch hardware, so its button pass taps too.
+        const bool carouselTouchOnly =
+            SETTINGS.uiTheme == CrossPointSettings::LYRA_CAROUSEL && mappedInputManager.hasTouchHardware();
+        const bool byTouch = (homePass % 2 != 0 && mappedInputManager.hasTouch()) || carouselTouchOnly;
+        verifyHomePowerEntry(home, byTouch,
+                             "home-power-theme-" + std::to_string(homePass / 2) + (byTouch ? "-touch" : "-buttons"));
+      }
       if (homePass % 2 == 0 || !mappedInputManager.hasTouch()) {
         mappedInputManager.simulatorInjectRelease(MappedInputManager::Button::Confirm);
         // Carousel intentionally ignores physical Confirm when touch hardware exists.

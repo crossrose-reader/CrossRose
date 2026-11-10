@@ -32,6 +32,7 @@
 #include "FilenameFontSystem.h"
 #include "GlobalActions.h"
 #include "MappedInputManager.h"
+#include "PowerMenu.h"
 #include "RecentBookProgress.h"
 #include "RecentBooksStore.h"
 #include "SavedItemsHomeActivity.h"
@@ -62,6 +63,7 @@ enum class HomeMenuAction {
   Bookmarks,
   FileTransfer,
   Settings,
+  Power,
 };
 
 struct HomeMenuEntry {
@@ -71,7 +73,9 @@ struct HomeMenuEntry {
 };
 
 struct HomeMenuEntries {
-  static constexpr int kCapacity = 8;
+  // Largest list: Continue Reading, Browse Files, Library, Plugins, Reading
+  // Stats, saved items, File Transfer, Settings and Power. push() drops extras.
+  static constexpr int kCapacity = 9;
   std::array<HomeMenuEntry, kCapacity> entries{};
   int count = 0;
 
@@ -249,6 +253,8 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasPlugins, bool hasReadin
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
   items.push({tr(STR_SETTINGS_TITLE), Settings, HomeMenuAction::Settings});
+  // Last, so the other entries keep their indexes and stay on the first page.
+  items.push({tr(STR_POWER), UIIcon::Power, HomeMenuAction::Power});
 }
 
 HomeMenuEntries buildHomeMenuItems(bool hasPlugins, bool hasReadingStats, bool hasBookmarks, bool hasClippings) {
@@ -276,6 +282,7 @@ HomeMenuEntries buildMinimalMenuItems(bool hasPlugins, bool hasReadingStats, boo
   }
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
+  items.push({tr(STR_POWER), UIIcon::Power, HomeMenuAction::Power});
   return items;
 }
 
@@ -540,22 +547,14 @@ static_assert(HomeActivity::kMaxCachedBooks >= LyraCarouselMetrics::values.homeR
               "kMaxCachedBooks must cover all carousel slots");
 
 int HomeActivity::getMenuItemCount() const {
-  if (coverGridUi) return static_cast<int>(recentBooks.size()) + (4 + hasPlugins);
+  // Cover Grid tabs: Browse Files, Library, [Plugins], File Transfer, Settings, Power.
+  if (coverGridUi) return static_cast<int>(recentBooks.size()) + (5 + hasPlugins);
+  // Count the list the themes draw, so a new entry cannot be unreachable by buttons.
   const auto& metrics = UITheme::getInstance().getMetrics();
-  int count = 4;  // File Browser, Library, File transfer, Settings
-  if (!metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
-    count += getVisibleRecentBookCount();
-  } else if (metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
-    count++;  // Continue Reading menu item
-  }
-  if (hasPlugins) count++;
-  if (hasReadingStats) {
-    count++;
-  }
-  if (hasBookmarks || hasClippings) {
-    count++;
-  }
-  return count;
+  return getHomeMenuSelectionOffset(recentBooks) +
+         buildSelectableHomeMenuItems(hasPlugins, hasReadingStats, hasBookmarks, hasClippings,
+                                      metrics.homeContinueReadingInMenu && !recentBooks.empty())
+             .size();
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
@@ -1445,12 +1444,11 @@ void HomeActivity::loop() {
     };
     buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Up}, [&] { cycleBand(0, bookCount, -1); });
     buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Down}, [&] { cycleBand(0, bookCount, 1); });
-    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Left}, [this, &cycleBand] {
-      cycleBand(static_cast<int>(recentBooks.size()), 4 + hasPlugins, -1);
-    });
-    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right}, [this, &cycleBand] {
-      cycleBand(static_cast<int>(recentBooks.size()), 4 + hasPlugins, 1);
-    });
+    const int tabCount = getMenuItemCount() - bookCount;
+    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Left},
+                                         [&cycleBand, bookCount, tabCount] { cycleBand(bookCount, tabCount, -1); });
+    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right},
+                                         [&cycleBand, bookCount, tabCount] { cycleBand(bookCount, tabCount, 1); });
     return;
   }
 
@@ -1509,6 +1507,9 @@ void HomeActivity::loop() {
             break;
           case HomeMenuAction::FileTransfer:
             onFileTransferOpen();
+            break;
+          case HomeMenuAction::Power:
+            onPowerMenuOpen();
             break;
           case HomeMenuAction::ContinueReading:
           case HomeMenuAction::Settings:
@@ -1756,6 +1757,9 @@ void HomeActivity::loop() {
         break;
       case HomeMenuAction::Settings:
         onSettingsOpen();
+        break;
+      case HomeMenuAction::Power:
+        onPowerMenuOpen();
         break;
     }
   };
@@ -2036,7 +2040,14 @@ void HomeActivity::activateCoverGridSelection() {
       }
       break;
     case 4:
-      if (hasPlugins) onSettingsOpen();
+      if (hasPlugins) {
+        onSettingsOpen();
+      } else {
+        onPowerMenuOpen();
+      }
+      break;
+    case 5:
+      if (hasPlugins) onPowerMenuOpen();
       break;
   }
 }
@@ -2411,4 +2422,11 @@ void HomeActivity::onSavedItemsOpen() {
     return;
   }
   startActivityForResult(std::move(savedItems), [this](const ActivityResult&) { requestUpdate(); });
+}
+
+void HomeActivity::onPowerMenuOpen() {
+  // Reuse the Quick Actions popup: Home's loop and render already route input to
+  // it and block global shortcuts while it is open, so Home needs no second one.
+  PowerMenu::show(quickActionsPopup);
+  requestUpdate();
 }

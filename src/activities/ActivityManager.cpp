@@ -30,6 +30,7 @@
 #include "ReleaseNotes.h"
 #include "SilentRestart.h"
 #include "boot_sleep/BootActivity.h"
+#include "boot_sleep/PowerScreenActivity.h"
 #include "boot_sleep/SleepActivity.h"
 #include "browser/OpdsBookBrowserActivity.h"
 #include "components/TouchRegistry.h"
@@ -1147,18 +1148,39 @@ void ActivityManager::goToSleep(bool fromTimeout) {
     RenderLock lock;
     TouchRegistry::getInstance().clear();
     if (sleepActivity) sleepActivity->onEnter();
-    exitActivity(lock);
-    while (!stackActivities.empty()) {
-      stackActivities.back()->onExit();
-      stackActivities.pop_back();
-    }
-    pendingActivity.reset();
-    pendingAction = PendingAction::None;
+    exitAllActivities(lock);
     currentActivity = std::move(sleepActivity);
     return;
   }
   replaceActivity(std::move(sleepActivity));
   loop();  // Important: sleep screen must be rendered immediately, the caller will go to sleep right after this returns
+}
+
+void ActivityManager::exitAllActivities(const RenderLock& lock) {
+  exitActivity(lock);
+  while (!stackActivities.empty()) {
+    stackActivities.back()->onExit();
+    stackActivities.pop_back();
+  }
+  pendingActivity.reset();
+  pendingAction = PendingAction::None;
+}
+
+void ActivityManager::goToPowerScreen(const bool restarting) {
+  auto powerScreen = makeUniqueNoThrow<PowerScreenActivity>(
+      renderer, mappedInput, restarting ? PowerScreenActivity::Mode::Restart : PowerScreenActivity::Mode::TurnOff);
+  if (!powerScreen) {
+    // Saving progress matters more than the final screen.
+    LOG_ERR("ACT", "Could not allocate power screen; saving outgoing activities without it");
+  }
+  // The lock keeps the render task off the panel for the whole hand-over. Save
+  // first and draw last: an onExit() may still paint (the image viewer clears
+  // the panel on exit), and nothing may cover the screen left on while off.
+  RenderLock lock;
+  TouchRegistry::getInstance().clear();
+  exitAllActivities(lock);
+  if (powerScreen) powerScreen->onEnter();
+  currentActivity = std::move(powerScreen);
 }
 
 void ActivityManager::goToBoot() { replaceActivity(std::make_unique<BootActivity>(renderer, mappedInput)); }

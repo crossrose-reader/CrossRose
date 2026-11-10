@@ -29,12 +29,15 @@ constexpr int8_t TOP_STATUS_BAR_TEXT_PADDING = 0;
 
 inline bool isNavigationLongPressAction(const uint8_t action) {
   return action == CrossPointSettings::LONG_MENU_HOME_READER || action == CrossPointSettings::LONG_MENU_BACK_HOME ||
-         action == CrossPointSettings::LONG_MENU_TOGGLE_PAGE_TURN_GESTURES;
+         action == CrossPointSettings::LONG_MENU_TOGGLE_PAGE_TURN_GESTURES ||
+         action == CrossPointSettings::LONG_MENU_TURN_OFF || action == CrossPointSettings::LONG_MENU_RESTART;
 }
 
 inline bool dispatchNavigationLongPressAction(const uint8_t action) {
   if (action == CrossPointSettings::LONG_MENU_TOGGLE_PAGE_TURN_GESTURES)
     return dispatchShortcutAction(CrossPointSettings::TOGGLE_PAGE_TURN_GESTURES);
+  if (action == CrossPointSettings::LONG_MENU_TURN_OFF) return dispatchShortcutAction(CrossPointSettings::TURN_OFF);
+  if (action == CrossPointSettings::LONG_MENU_RESTART) return dispatchShortcutAction(CrossPointSettings::RESTART);
   if (!isNavigationLongPressAction(action)) return false;
   return dispatchShortcutAction(action == CrossPointSettings::LONG_MENU_HOME_READER ? CrossPointSettings::HOME_READER
                                                                                     : CrossPointSettings::BACK_HOME);

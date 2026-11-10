@@ -11,7 +11,9 @@
 
 #include "CrossPointSettings.h"
 #include "FilenameFontSystem.h"
+#include "GlobalActions.h"
 #include "MappedInputManager.h"
+#include "PowerMenu.h"
 #include "activities/ActivityManager.h"
 #include "activities/RenderLock.h"
 #include "activities/home/BookActions.h"
@@ -25,6 +27,7 @@
 #include "components/UiAppHelpers.h"
 #include "components/icons/frontlightHeaderIcons.h"
 #include "components/icons/listIcons.h"
+#include "components/icons/powerIcons.h"
 #include "components/icons/readingStatsIcons.h"
 #include "components/icons/tablerIcons.h"
 #include "components/icons/touchscreenStateIcons.h"
@@ -304,8 +307,28 @@ bool FrontlightPanelActivity::handleHomeGesture() {
   return true;
 }
 
+void FrontlightPanelActivity::openPowerMenu() {
+  powerMenuOpen = true;
+  // No cancel callback: cancelling returns to the panel (see loop()).
+  PowerMenu::show(optionPopup);
+  requestUpdate();
+}
+
 void FrontlightPanelActivity::loop() {
-  if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
+  if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) {
+    if (powerMenuOpen && !optionPopup.isActive()) {
+      powerMenuOpen = false;
+      // A chosen Turn Off / Restart runs at the start of the main loop's next
+      // iteration and replaces every activity, so nothing here needs a repaint.
+      if (!isPowerActionPending()) {
+        // Cancelled: the centered popup also covered the screen below the
+        // drawer, which the drawer's own render never repaints.
+        activityManager.restoreBackdropBehindCurrentOverlay();
+        requestUpdate();
+      }
+    }
+    return;
+  }
 
   // A power-button shortcut can change the light globally while this panel is
   // open. Keep the panel's state and eventual persistence in sync.
@@ -318,6 +341,12 @@ void FrontlightPanelActivity::loop() {
   if (context.activeReaderBook &&
       mappedInput.wasTapInRect(homeButton.x, homeButton.y, homeButton.width, homeButton.height)) {
     activityManager.goHome();
+    return;
+  }
+
+  const Rect powerButton = powerButtonRect();
+  if (mappedInput.wasTapInRect(powerButton.x, powerButton.y, powerButton.width, powerButton.height)) {
+    openPowerMenu();
     return;
   }
 
@@ -365,6 +394,11 @@ void FrontlightPanelActivity::loop() {
 Rect FrontlightPanelActivity::homeButtonRect() const {
   const Rect header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
   return Rect{header.x + header.width - HEADER_BUTTON_WIDTH, header.y, HEADER_BUTTON_WIDTH, header.height};
+}
+
+Rect FrontlightPanelActivity::powerButtonRect() const {
+  const Rect header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
+  return Rect{header.x, header.y, HEADER_BUTTON_WIDTH, header.height};
 }
 
 int FrontlightPanelActivity::computePanelBottom() {
@@ -586,25 +620,33 @@ void FrontlightPanelActivity::drawHeader() {
   const int headerBottom = header.y + header.height;
   const int titleY = headerBottom - HEADER_CONTENT_BOTTOM_GAP - renderer.getLineHeight(titleFontId);
   const bool showBookTitle = !context.showReaderDetails && context.activeReaderBook && !context.bookTitle.empty();
+  const Rect powerButton = powerButtonRect();
   if (showBookTitle) {
     const auto tokens = uiThemeTokens(uiTarget);
     const Rect homeButton = homeButtonRect();
-    const int titleX = header.x + tokens.headerSidePadding;
+    const int titleX =
+        std::max(header.x + tokens.headerSidePadding, powerButton.x + powerButton.width + tokens.spaceSm);
     const int titleRight = homeButton.x - tokens.spaceSm;
     const int titleWidth = std::max(0, titleRight - titleX);
     const std::string visibleTitle = renderer.truncatedText(titleFontId, title, titleWidth, EpdFontFamily::BOLD);
     renderer.drawText(titleFontId, titleX, titleY, visibleTitle.c_str(), true, EpdFontFamily::BOLD);
   } else {
-    UITheme::drawCenteredText(renderer, header, titleFontId, titleY, title, true);
+    // Center between the two header buttons so a long date never runs under
+    // the power or Home icon.
+    const Rect titleLane{header.x + HEADER_BUTTON_WIDTH, header.y, std::max(0, header.width - 2 * HEADER_BUTTON_WIDTH),
+                         header.height};
+    UITheme::drawCenteredText(renderer, titleLane, titleFontId, titleY, title, true);
   }
 
-  if (context.activeReaderBook) {
-    const Rect button = homeButtonRect();
+  // Both header icons share the title's lower lane, centered in their button.
+  const auto drawHeaderIcon = [&](const Rect& button, const freeink::Icon& icon) {
     uiTarget.bitmap(fui::Rect{static_cast<int16_t>(button.x + (button.width - HEADER_ICON_SIZE) / 2),
                               static_cast<int16_t>(headerBottom - HEADER_CONTENT_BOTTOM_GAP - HEADER_ICON_SIZE),
                               HEADER_ICON_SIZE, HEADER_ICON_SIZE},
-                    fui::bitmapFromIcon(icon_home_24), fui::BitmapMode::Center);
-  }
+                    fui::bitmapFromIcon(icon), fui::BitmapMode::Center);
+  };
+  drawHeaderIcon(powerButton, icon_power_24);
+  if (context.activeReaderBook) drawHeaderIcon(homeButtonRect(), icon_home_24);
 }
 
 bool FrontlightPanelActivity::showsBookProgress() const {

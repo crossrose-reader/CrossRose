@@ -36,8 +36,9 @@ void showConfiguredPopup(OptionPopup& popup, const std::function<void()>& reques
     actions.push_back(action);
   }
   if (actions.empty()) return;
+  OptionPopup* const target = &popup;
   popup.show(StrId::STR_QUICK_ACTIONS, labels, 0,
-             [actions = std::move(actions), actionHandler = std::move(actionHandler)](const int selected) {
+             [target, actions = std::move(actions), actionHandler = std::move(actionHandler)](const int selected) {
                if (selected >= 0 && static_cast<size_t>(selected) < actions.size()) {
                  const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(actions[selected]);
                  // These actions read or write the current framebuffer immediately.
@@ -57,6 +58,9 @@ void showConfiguredPopup(OptionPopup& popup, const std::function<void()>& reques
                  } else {
                    dispatchShortcutAction(action);
                  }
+                 // Turn Off / Restart replace every screen on the next main-loop
+                 // pass; repainting the one underneath would only delay that.
+                 if (isPowerActionPending()) target->skipPostSelectionUpdate();
                }
              });
   requestUpdate();

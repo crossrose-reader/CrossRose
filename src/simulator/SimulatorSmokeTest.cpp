@@ -55,6 +55,7 @@
 #include "CrossPointState.h"
 #include "DeviceCapabilities.h"
 #include "FilenameFontSystem.h"
+#include "GlobalActions.h"
 #include "HyphenationPackStore.h"
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
@@ -1301,15 +1302,16 @@ struct ScreenCalibrationSmokeTest {
           renderer.clearScreen();
           const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInputManager, safe);
           const int menuTop = header.y + header.height;
+          // Nine rows: the longest Home menu (RoundedRaff with Continue Reading and Power).
           GUI.drawButtonMenu(
-              renderer, Rect{safe.x, menuTop, safe.width, std::max(0, safe.y + safe.height - menuTop)}, 8, 7,
+              renderer, Rect{safe.x, menuTop, safe.width, std::max(0, safe.y + safe.height - menuTop)}, 9, 8,
               [](int) { return "Menu action"; }, nullptr);
           valid &= checkInk("Home menu");
           bool labelsValid = true;
           GUI.drawButtonMenu(
-              renderer, Rect{safe.x, menuTop, safe.width, GUI.getMenuRowHeight(renderer) + 4}, 8, -3,
+              renderer, Rect{safe.x, menuTop, safe.width, GUI.getMenuRowHeight(renderer) + 4}, 9, -3,
               [&](int i) {
-                labelsValid &= i >= 0 && i < 8;
+                labelsValid &= i >= 0 && i < 9;
                 return "Menu action";
               },
               nullptr);
@@ -1367,6 +1369,19 @@ struct ScreenCalibrationSmokeTest {
             valid &= handle.x >= safe.x && handle.right() <= safe.x + safe.width && handle.y >= safe.y &&
                      handle.bottom() <= safe.y + safe.height &&
                      panel->simulatorContentBottom <= panel->simulatorActionBarTop;
+            // The header power icon stays inside the visible glass and its header.
+            const Rect power = panel->simulatorPowerButtonRect();
+            const Rect panelHeader = TouchHeaderBackButton::headerRect(renderer, mappedInputManager);
+            const bool powerInside = power.width > 0 && power.height > 0 && power.x >= edges[3] &&
+                                     power.y >= edges[0] &&
+                                     power.x + power.width <= renderer.getScreenWidth() - edges[1] &&
+                                     power.y + power.height <= renderer.getScreenHeight() - edges[2] &&
+                                     power.y + power.height <= panelHeader.y + panelHeader.height;
+            if (!powerInside) {
+              LOG_ERR("SMOKE", "Frontlight power icon outside the screen theme=%d case=%u rotation=%u rect=%d,%d %dx%d",
+                      variant, index, rotation, power.x, power.y, power.width, power.height);
+            }
+            valid &= powerInside;
             panel->onExit();
           }
           if (rotation == 0) {
@@ -2067,6 +2082,7 @@ class SimulatorSmokeTest {
     PrepareFrontlightSync,
     OpenFrontlightSync,
     CheckFrontlightSync,
+    CheckFrontlightPowerMenu,
     DisableReadingStats,
     EnableReadingStats,
     DisableReaderTouch,
@@ -2074,6 +2090,7 @@ class SimulatorSmokeTest {
     TouchDown,
     TouchDrawerHandle,
     TouchFrontlightQuickAction,
+    TouchFrontlightPower,
     TouchMove,
     TouchRelease,
     AssertReaderMenu,
@@ -3763,9 +3780,23 @@ class SimulatorSmokeTest {
       fail("Quick Actions is missing from the Power + Up chord setting");
     }
     if (CrossPointSettings::HOME_READER != 36 || CrossPointSettings::SELECT_CHAPTER != 38 ||
-        CrossPointSettings::SHORT_PWRBTN_COUNT != 41 || CrossPointSettings::CHORD_HOME_READER != 32 ||
-        CrossPointSettings::CHORD_SELECT_CHAPTER != 34 || CrossPointSettings::POWER_CHORD_ACTION_COUNT != 37) {
+        CrossPointSettings::SHORT_PWRBTN_COUNT != 43 || CrossPointSettings::CHORD_HOME_READER != 32 ||
+        CrossPointSettings::CHORD_SELECT_CHAPTER != 34 || CrossPointSettings::POWER_CHORD_ACTION_COUNT != 39) {
       fail("Home/Reader changed persisted shortcut IDs or counts");
+    }
+    // Turn Off / Restart are appended persisted IDs; the chord values are cast
+    // straight to ButtonShortcutController::ChordAction at runtime.
+    if (CrossPointSettings::TURN_OFF != 41 || CrossPointSettings::RESTART != 42 ||
+        CrossPointSettings::CHORD_TURN_OFF != 37 || CrossPointSettings::CHORD_RESTART != 38 ||
+        CrossPointSettings::LONG_MENU_TURN_OFF != 30 || CrossPointSettings::LONG_MENU_RESTART != 31 ||
+        CrossPointSettings::LONG_PRESS_MENU_ACTION_COUNT != 32 ||
+        static_cast<uint8_t>(ButtonShortcutController::ChordAction::TurnOff) != CrossPointSettings::CHORD_TURN_OFF ||
+        static_cast<uint8_t>(ButtonShortcutController::ChordAction::Restart) != CrossPointSettings::CHORD_RESTART) {
+      fail("Turn Off/Restart changed persisted shortcut IDs or chord alignment");
+    }
+    for (const auto action : {CrossPointSettings::TURN_OFF, CrossPointSettings::RESTART}) {
+      if (!isPowerButtonActionAvailableOutsideReader(action))
+        fail("Power action %u unavailable outside reader", static_cast<unsigned>(action));
     }
     if (QuickActions::actionLabel(CrossPointSettings::HOME_READER) != StrId::STR_HOME_READER) {
       fail("Home/Reader shortcut label mismatch");
@@ -3791,31 +3822,45 @@ class SimulatorSmokeTest {
         !containsShortcut(allSettings, "powerChordAction", ShortcutOptionCatalog::ButtonChord)) {
       fail("Home/Reader shortcut availability or settings mapping mismatch");
     }
-    for (const auto action : {CrossPointSettings::BACK_HOME, CrossPointSettings::HOME_READER}) {
-      if (!QuickActions::isQuickActionSlotActionAvailable(action)) fail("Navigation missing from Quick Actions");
+    // Navigation and power actions are offered once, with their own label, in
+    // every button shortcut picker and as a Quick Actions slot. Only check the
+    // catalogs here: Turn Off and Restart must never run inside the smoke test.
+    for (const auto action : {CrossPointSettings::BACK_HOME, CrossPointSettings::HOME_READER,
+                              CrossPointSettings::TURN_OFF, CrossPointSettings::RESTART}) {
+      const auto id = static_cast<unsigned>(action);
+      if (!QuickActions::isActionAvailable(action) || !QuickActions::isQuickActionSlotActionAvailable(action))
+        fail("Shortcut %u missing from Quick Actions", id);
       for (const char* key : {"shortPwrBtn", "longPwrBtn"}) {
         if (!containsShortcut(allSettings, key, ShortcutOptionCatalog::PowerButton, action))
-          fail("Navigation missing from power shortcut %s", key);
+          fail("Shortcut %u missing from power shortcut %s", id, key);
       }
       for (const char* key : {"longPressMenuAction", "longPressBackAction"}) {
         if (!containsShortcut(allSettings, key, ShortcutOptionCatalog::LongPress, action))
-          fail("Navigation missing from long-press shortcut %s", key);
+          fail("Shortcut %u missing from long-press shortcut %s", id, key);
       }
       if (!containsShortcut(allSettings, "powerChordAction", ShortcutOptionCatalog::ButtonChord, action))
-        fail("Navigation missing from power chord");
+        fail("Shortcut %u missing from power chord", id);
       if (deviceSupportsSideButtonChord(gpio) &&
           !containsShortcut(allSettings, "sideButtonChordAction", ShortcutOptionCatalog::ButtonChord, action))
-        fail("Navigation missing from side chord");
+        fail("Shortcut %u missing from side chord", id);
       for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
         if (!containsShortcut(sideButtonSettings, key, ShortcutOptionCatalog::SideButton, action))
-          fail("Navigation missing from side shortcut %s", key);
+          fail("Shortcut %u missing from side shortcut %s", id, key);
+      }
+      for (const char* key : {"frontButtonLeftLong", "frontButtonRightLong"}) {
+        if (!containsShortcut(allSettings, key, ShortcutOptionCatalog::SideButton, action))
+          fail("Shortcut %u missing from front long-press shortcut %s", id, key);
       }
       if (gpio.hasHomeKey()) {
         for (const char* key : {"homeButtonTapAction", "homeButtonDoubleTapAction", "homeButtonLongPressAction"}) {
           if (!containsShortcut(allSettings, key, ShortcutOptionCatalog::HomeButton, action))
-            fail("Navigation missing or duplicated in Home shortcut %s", key);
+            fail("Shortcut %u missing or duplicated in Home shortcut %s", id, key);
         }
       }
+    }
+    if (QuickActions::actionLabel(CrossPointSettings::TURN_OFF) != StrId::STR_TURN_OFF ||
+        QuickActions::actionLabel(CrossPointSettings::RESTART) != StrId::STR_RESTART) {
+      fail("Turn Off/Restart shortcut labels mismatch");
     }
     if (CrossPointSettings::BACK_HOME != 37 || CrossPointSettings::CHORD_BACK_HOME != 33 ||
         CrossPointSettings::HOME_BUTTON_BACK_HOME != 23 || CrossPointSettings::LONG_MENU_HOME_READER != 25 ||
@@ -3823,24 +3868,30 @@ class SimulatorSmokeTest {
       fail("Navigation changed persisted IDs");
     JsonDocument savedNavigationSettings;
     SETTINGS.toJson(savedNavigationSettings);
-    for (const auto action : {CrossPointSettings::BACK_HOME, CrossPointSettings::HOME_READER}) {
+    for (const auto action : {CrossPointSettings::BACK_HOME, CrossPointSettings::HOME_READER,
+                              CrossPointSettings::TURN_OFF, CrossPointSettings::RESTART}) {
       const auto chord = shortcutRawValue(ShortcutOptionCatalog::ButtonChord, action);
       const auto longPress = shortcutRawValue(ShortcutOptionCatalog::LongPress, action);
+      const auto homeKey = shortcutRawValue(ShortcutOptionCatalog::HomeButton, action);
       SETTINGS.shortPwrBtn = action;
       SETTINGS.longPwrBtn = action;
       SETTINGS.powerChordAction = chord;
       SETTINGS.sideButtonUpLong = action;
+      SETTINGS.frontButtonLeftLong = action;
       SETTINGS.longPressMenuAction = longPress;
       SETTINGS.longPressBackAction = longPress;
       SETTINGS.quickActionSlots[0] = action;
+      if (gpio.hasHomeKey()) SETTINGS.homeButtonLongPressAction = homeKey;
       JsonDocument roundTrip;
       SETTINGS.toJson(roundTrip);
       SETTINGS.fromJson(savedNavigationSettings.as<JsonVariantConst>());
       SETTINGS.fromJson(roundTrip.as<JsonVariantConst>());
       if (SETTINGS.shortPwrBtn != action || SETTINGS.longPwrBtn != action || SETTINGS.powerChordAction != chord ||
-          SETTINGS.sideButtonUpLong != action || SETTINGS.longPressMenuAction != longPress ||
-          SETTINGS.longPressBackAction != longPress || SETTINGS.quickActionSlots[0] != action)
-        fail("Navigation assignments did not survive settings reload");
+          SETTINGS.sideButtonUpLong != action || SETTINGS.frontButtonLeftLong != action ||
+          SETTINGS.longPressMenuAction != longPress || SETTINGS.longPressBackAction != longPress ||
+          SETTINGS.quickActionSlots[0] != action ||
+          (gpio.hasHomeKey() && SETTINGS.homeButtonLongPressAction != homeKey))
+        fail("Shortcut %u assignments did not survive settings reload", static_cast<unsigned>(action));
     }
     SETTINGS.fromJson(savedNavigationSettings.as<JsonVariantConst>());
     for (const auto action :
@@ -9125,6 +9176,31 @@ class SimulatorSmokeTest {
         if (frontlightLayoutPass % 2 && portrait && !panel->simulatorShowsChapterLine()) {
           fail("Frontlight chapter line dropped in portrait layout matrix case %u", frontlightLayoutPass);
         }
+        {
+          // The header power icon: on the glass, inside the header, drawn, and
+          // clear of the reader's Home icon at the other end of the header.
+          const Rect power = panel->simulatorPowerButtonRect();
+          const Rect header = TouchHeaderBackButton::headerRect(renderer, mappedInputManager);
+          if (power.width <= 0 || power.height <= 0 || power.x < left || power.y < top ||
+              power.x + power.width > renderer.getScreenWidth() - right ||
+              power.y + power.height > renderer.getScreenHeight() - bottom ||
+              power.y + power.height > header.y + header.height) {
+            fail("Frontlight power icon outside the header or screen in layout matrix case %u", frontlightLayoutPass);
+          }
+          if (frontlightLayoutPass % 2) {
+            const Rect home = panel->simulatorHomeButtonRect();
+            if (power.x < home.x + home.width && home.x < power.x + power.width && power.y < home.y + home.height &&
+                home.y < power.y + power.height) {
+              fail("Frontlight power icon overlaps Home in layout matrix case %u", frontlightLayoutPass);
+            }
+          }
+          RenderLock lock;
+          bool inked = false;
+          for (int y = power.y; y < power.y + power.height && !inked; ++y) {
+            for (int x = power.x; x < power.x + power.width && !inked; ++x) inked = renderer.isPixelBlack(x, y);
+          }
+          if (!inked) fail("Frontlight power icon not drawn in layout matrix case %u", frontlightLayoutPass);
+        }
         if (const char* outputDir = std::getenv("CROSSINK_SIMULATOR_SMOKE_FRONTLIGHT_CAPTURES")) {
           const auto path = std::filesystem::path(outputDir) / (std::to_string(frontlightLayoutPass) + ".pgm");
           FILE* image = std::fopen(path.c_str(), "wb");
@@ -9341,6 +9417,13 @@ class SimulatorSmokeTest {
   }
   static ScriptAction touchFrontlightQuickAction(const int index) {
     return {ScriptActionType::TouchFrontlightQuickAction, MappedInputManager::Button::Back, nullptr, 0, index, 0};
+  }
+  static ScriptAction touchFrontlightPower() {
+    return {ScriptActionType::TouchFrontlightPower, MappedInputManager::Button::Back, nullptr, 0, 0, 0};
+  }
+  // expectOpen: the Power chooser is showing; otherwise the panel is back with no menu.
+  static ScriptAction checkFrontlightPowerMenu(const bool expectOpen) {
+    return {ScriptActionType::CheckFrontlightPowerMenu, MappedInputManager::Button::Back, nullptr, 0, expectOpen, 0};
   }
   static ScriptAction touchMove(const int x, const int y) {
     return {ScriptActionType::TouchMove, MappedInputManager::Button::Back, nullptr, 0, x, y};
@@ -9578,6 +9661,25 @@ class SimulatorSmokeTest {
         inputScript.push_back(touchRelease(width / 2, height / 4));
         inputScript.push_back(render("Frontlight Panel reopened after Home button", 4));
         inputScript.push_back(assertActivity("FrontlightPanel"));
+        // The header power icon opens the shared Power chooser over the drawer.
+        // Back, and a tap outside the chooser, cancel back to the drawer; the
+        // smoke test never picks Turn Off or Restart.
+        inputScript.push_back(touchFrontlightPower());
+        inputScript.push_back(render("Power menu opened from Frontlight Panel", 4));
+        inputScript.push_back(assertActivity("FrontlightPanel"));
+        inputScript.push_back(checkFrontlightPowerMenu(true));
+        addTap(MappedInputManager::Button::Back);
+        inputScript.push_back(render("Frontlight Panel kept after Power menu Back", 4));
+        inputScript.push_back(assertActivity("FrontlightPanel"));
+        inputScript.push_back(checkFrontlightPowerMenu(false));
+        inputScript.push_back(touchFrontlightPower());
+        inputScript.push_back(render("Power menu reopened from Frontlight Panel", 4));
+        inputScript.push_back(checkFrontlightPowerMenu(true));
+        inputScript.push_back(touchDown(width / 2, height - 60));
+        inputScript.push_back(touchRelease(width / 2, height - 60));
+        inputScript.push_back(render("Frontlight Panel kept after tap outside Power menu", 4));
+        inputScript.push_back(assertActivity("FrontlightPanel"));
+        inputScript.push_back(checkFrontlightPowerMenu(false));
         inputScript.push_back(touchDown(20, height / 3));
         inputScript.push_back(touchMove(20, 8));
         inputScript.push_back(touchRelease(20, 8));
@@ -10107,6 +10209,44 @@ class SimulatorSmokeTest {
         }
         break;
       }
+      case ScriptActionType::CheckFrontlightPowerMenu: {
+        auto* panel = dynamic_cast<FrontlightPanelActivity*>(activityManager.simulatorCurrentActivity());
+        if (!panel) fail("Expected the frontlight drawer around its Power menu");
+        // Nothing may be queued: the smoke test only opens and cancels the chooser.
+        if (isPowerActionPending()) fail("Frontlight Power menu queued a power action");
+        if (action.x == 0) {
+          if (panel->simulatorPowerMenuOpen() || panel->blocksGlobalInput())
+            fail("Frontlight Power menu still open after cancel");
+          break;
+        }
+        if (!panel->simulatorPowerMenuOpen()) fail("Frontlight power icon did not open the Power menu");
+        if (!panel->blocksGlobalInput()) fail("Frontlight Power menu does not block global shortcuts");
+        if (std::strcmp(panel->simulatorPopupOptionLabel(0), tr(STR_TURN_OFF)) != 0 ||
+            std::strcmp(panel->simulatorPopupOptionLabel(1), tr(STR_RESTART)) != 0) {
+          fail("Frontlight Power menu options are %s / %s", panel->simulatorPopupOptionLabel(0),
+               panel->simulatorPopupOptionLabel(1));
+        }
+        // The chooser draws over the drawer: both option rows are on the glass.
+        for (int index = 0; index < 2; ++index) {
+          const Rect row = panel->simulatorSyncOptionRect(index);
+          if (row.width <= 0 || row.height <= 0 || row.x < 0 || row.y < 0 ||
+              row.x + row.width > renderer.getScreenWidth() || row.y + row.height > renderer.getScreenHeight())
+            fail("Frontlight Power menu option %d is off screen", index);
+        }
+        if (const char* outputDir = std::getenv("CROSSINK_SIMULATOR_SMOKE_FRONTLIGHT_CAPTURES")) {
+          const auto path = std::filesystem::path(outputDir) / "power-menu.pgm";
+          FILE* image = std::fopen(path.c_str(), "wb");
+          if (!image) fail("Cannot create power menu capture");
+          RenderLock lock;
+          const int width = renderer.getScreenWidth();
+          const int height = renderer.getScreenHeight();
+          std::fprintf(image, "P5\n%d %d\n255\n", width, height);
+          for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x) std::fputc(renderer.isPixelBlack(x, y) ? 0 : 255, image);
+          std::fclose(image);
+        }
+        break;
+      }
       case ScriptActionType::OpenFrontlightSettings: {
         auto* panel = dynamic_cast<FrontlightPanelActivity*>(activityManager.simulatorCurrentActivity());
         if (!panel) fail("Expected frontlight drawer before opening Settings");
@@ -10263,6 +10403,20 @@ class SimulatorSmokeTest {
                              touchRelease(hit.x + hit.width / 2, hit.y + hit.height / 2));
         } else {
           fail("No Frontlight Panel for quick action");
+        }
+#endif
+        break;
+      case ScriptActionType::TouchFrontlightPower:
+#if CROSSINK_APP_CAP_TOUCH
+        if (auto* panel = dynamic_cast<FrontlightPanelActivity*>(activityManager.simulatorCurrentActivity())) {
+          const Rect hit = panel->simulatorPowerButtonRect();
+          if (hit.width <= 0 || hit.height <= 0) fail("Frontlight power icon has no touch target");
+          mappedInputManager.simulatorInjectTouchDown(hit.x + hit.width / 2, hit.y + hit.height / 2);
+          // Queue the matching release before the next existing render step.
+          inputScript.insert(inputScript.begin() + scriptIndex,
+                             touchRelease(hit.x + hit.width / 2, hit.y + hit.height / 2));
+        } else {
+          fail("No Frontlight Panel for the power icon");
         }
 #endif
         break;

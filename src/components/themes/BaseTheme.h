@@ -178,7 +178,8 @@ enum UIIcon {
   Hotspot,
   Chart,
   BookCheck,
-  Plugins
+  Plugins,
+  Power
 };
 
 // Default theme implementation (Classic Theme)
