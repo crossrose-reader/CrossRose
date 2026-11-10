@@ -386,7 +386,6 @@ bool drawCenterCoverArt(GfxRenderer& renderer, const RecentBook& book, const Rec
   const int iconY = outRect.y + outRect.height / 3 + 14;
   renderer.drawIcon(CoverIcon, iconX, iconY, 32, 32);
 
-  const int fallbackTitleX = outRect.x + kFallbackTitlePadX;
   const int fallbackTitleY = iconY + 32 + kFallbackIconGap;
   const int fallbackTitleW = outRect.width - kFallbackTitlePadX * 2;
   const int fallbackTitleH = outRect.y + outRect.height - kFallbackTitlePadBottom - fallbackTitleY;
@@ -405,7 +404,7 @@ bool drawCenterCoverArt(GfxRenderer& renderer, const RecentBook& book, const Rec
   return false;
 }
 
-bool drawSideCoverArt(GfxRenderer& renderer, const RecentBook& book, int x, int y, int width, int leftHeight,
+bool drawSideCoverArt(const GfxRenderer& renderer, const RecentBook& book, int x, int y, int width, int leftHeight,
                       int rightHeight, CoverArtPass pass) {
   const bool plane = pass == CoverArtPass::FourTonePlane;
   const int sideHeight = std::max(leftHeight, rightHeight);

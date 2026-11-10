@@ -1296,6 +1296,8 @@ void HomeActivity::invalidateFourToneFrames() {
 void HomeActivity::resetFourToneCovers() {
   fourToneShown = false;
   fourToneFramesKey = 0;
+  // FourToneFrames is move-only (it owns its buffers), so std::fill cannot assign it.
+  // cppcheck-suppress useStlAlgorithm
   for (auto& frames : fourToneFrames) frames = FourToneFrames{};
 }
 
@@ -2233,7 +2235,10 @@ void HomeActivity::render(RenderLock&&) {
 
   // Four-tone covers are composed in the fast path below. When they can be
   // shown, prepare its snapshot before the first paint, so Home does not
-  // show black-and-white covers first.
+  // show black-and-white covers first. canShowFourToneCovers() is constant
+  // false on builds without CROSSINK_APP_CAP_GRAY_COVER_ART, hence the
+  // knownConditionTrueFalse suppressions here and in the fast path.
+  // cppcheck-suppress knownConditionTrueFalse
   if (carouselWarmupPending && !carouselFramesReady && canShowFourToneCovers(getHighlightedBookIndex())) {
     carouselWarmupPending = false;
     preRenderCarouselFrames();
@@ -2253,10 +2258,12 @@ void HomeActivity::render(RenderLock&&) {
     // four-tone thumbnail, else from the black-and-white snapshot, which is
     // then not needed for this position.
     [[maybe_unused]] const auto fourToneStart = millis();
+    // cppcheck-suppress knownConditionTrueFalse
     const FourToneFrames* fourTone = frameBuffer && canShowFourToneCovers(centerIdx)
                                          ? prepareFourToneFrames(coverRect, centerIdx, inCarouselRow)
                                          : nullptr;
 
+    // cppcheck-suppress knownConditionTrueFalse
     if (frameBuffer && !fourTone && slotIdx < 0 && gCarouselCache.keyHash != 0 && bookCount > 0) {
       const int evictSlot = chooseCarouselEvictionSlot(centerIdx, bookCount);
       if (evictSlot >= 0) {
@@ -2268,6 +2275,7 @@ void HomeActivity::render(RenderLock&&) {
       }
     }
 
+    // cppcheck-suppress knownConditionTrueFalse
     if (frameBuffer && (fourTone || (slotIdx >= 0 && carouselFrames[slotIdx]))) {
       const auto& carouselTheme = static_cast<const LyraCarouselTheme&>(GUI);
       // The same picture is already on the panel: one fast refresh keeps its
