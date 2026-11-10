@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 
 #include "FontCacheManager.h"
 #include "GlyphBitmap.h"
@@ -3261,6 +3262,27 @@ bool GfxRenderer::supportsGrayArtwork() const {
 #endif
 }
 
+bool GfxRenderer::isPiccoSe0400() const {
+#if FREEINK_DEVICE_PICCO
+  // Its other panels run the SSD1677 driver.
+  const char* controller = display.getControllerName();
+  return controller && std::string_view(controller) == "SSD2677";
+#else
+  return false;
+#endif
+}
+
+void GfxRenderer::encodeGrayArtworkPlanes(uint8_t* lsb, uint8_t* msb) const {
+  // The overlay masks mark dark gray in both planes and light gray in the MSB
+  // plane alone. The SSD2677 drives each pixel by its (MSB, LSB) code, and the
+  // Picco SE0400's gray waveform lightens code 10 to light gray and code 01 to
+  // dark gray but leaves 11 alone, so dark gray would stay black. Keeping dark
+  // gray in the LSB plane only gives the panel all four tones. Text keeps the
+  // shared encoding; this runs only on artwork planes.
+  if (!lsb || !msb || !isPiccoSe0400()) return;
+  for (size_t i = 0; i < frameBufferSize; ++i) msb[i] = static_cast<uint8_t>(msb[i] & ~lsb[i]);
+}
+
 bool GfxRenderer::retireGrayArtwork(const HalDisplay::RefreshMode mode) const {
   if (!grayArtwork_.onPanel) return false;
   const bool differential = mode == HalDisplay::FAST_REFRESH;
@@ -3302,9 +3324,17 @@ bool GfxRenderer::displayGrayArtwork(const uint8_t* lsb, const uint8_t* msb, con
   }
   // The base refresh also retires earlier artwork, which still owns the copies.
   grayArtwork_.keepForNextRefresh = false;
-  displayGrayscaleBase(mode);
+  // The Picco SE0400's full waveform drives every pixel straight to its target
+  // (black, then white, 13 frames each) without flashing, in about 427 ms
+  // against 346 ms for the differential one, which left the previous picture
+  // showing through. New artwork is rare enough to always take the full one.
+  const HalDisplay::RefreshMode baseMode =
+      mode == HalDisplay::FAST_REFRESH && isPiccoSe0400() ? HalDisplay::HALF_REFRESH : mode;
+  displayGrayscaleBase(baseMode);
   memcpy(grayArtwork_.base.get(), frameBuffer, frameBufferSize);
-  memcpy(grayArtwork_.mask.get(), msb, frameBufferSize);
+  // A pixel marked in either plane is gray on the panel.
+  uint8_t* mask = grayArtwork_.mask.get();
+  for (size_t i = 0; i < frameBufferSize; ++i) mask[i] = static_cast<uint8_t>(lsb[i] | msb[i]);
   copyGrayscalePlanes(lsb, msb);
   displayGrayBuffer();
   cleanupGrayscaleWithFrameBuffer();

@@ -1001,7 +1001,9 @@ A thumbnail path can carry a format suffix before the extension:
 
 - no suffix: 1 bpp black and white, as before.
 - `_g4`: 2 bpp, palette black / 85 / 170 / white. Used for four-tone cover art
-  on panels that support it (Boox Picco).
+  on panels that support it (Boox Picco). The palette names the tones; pixels
+  are dithered toward the levels the Picco's SE0400 panel actually shows,
+  about 50% and 75% white for the two grays.
 - `_g8`: 8 bpp grayscale source. Temporary: written while a cover is decoded,
   used to derive the other formats, then deleted. One left behind by an
   interrupted derivation is never reused. Carousel's is named

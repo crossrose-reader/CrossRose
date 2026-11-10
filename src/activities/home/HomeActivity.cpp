@@ -1317,6 +1317,7 @@ HomeActivity::FourTonePicture HomeActivity::prepareFourToneFrames(const Rect& co
       memcpy(pass.target, renderer.getFrameBuffer(), size);
     }
     renderer.setRenderMode(GfxRenderer::BW);
+    if (drawPlanes) renderer.encodeGrayArtworkPlanes(frames.lsb[plane].get(), frames.msb[plane].get());
     frames.baseReady = true;
     frames.planesReady[plane] = true;
   }

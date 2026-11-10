@@ -60,6 +60,11 @@ struct ImageTonePalette {
 
 inline constexpr ImageTonePalette legacyTonePalette{{30, 50, 140}, {15, 30, 80, 210}};
 inline constexpr ImageTonePalette evenTonePalette{{43, 128, 213}, {0, 85, 170, 255}};
+// Four-tone cover art as the Picco's SE0400 shows it. Its overlay gray pass
+// lightens dark gray to about a 50% dot pattern and light gray to about 75%
+// (matched by eye against Bayer dithers on the panel), not the even 33% and
+// 67% steps, so dithering toward the even levels left dark areas too light.
+inline constexpr ImageTonePalette fourToneArtPalette{{64, 160, 223}, {0, 128, 191, 255}};
 constexpr const ImageTonePalette& paletteFor(ImageToneProfile profile) {
   switch (profile) {
     case ImageToneProfile::Legacy:
@@ -88,7 +93,7 @@ class ThumbnailDitherer {
   // Tuned on real covers at 296x468; stronger settings posterize logos.
   static constexpr int kOneBitEdgeBoost = 12;
 
-  // levels is 2 (black/white) or 4 (the even four-tone palette).
+  // levels is 2 (black/white) or 4 (fourToneArtPalette).
   ThumbnailDitherer(int width, int levels, int edgeBoost = 0) : levels(levels == 4 ? 4 : 2), edgeBoost(edgeBoost) {
     if (width <= 0) return;
     const size_t candidateRowSize = static_cast<size_t>(width) + 4;
@@ -149,9 +154,9 @@ class ThumbnailDitherer {
 
   uint8_t quantizeTone(const int gray) const {
     if (levels == 2) return gray < 128 ? 0 : 1;
-    return evenTonePalette.quantize(gray);
+    return fourToneArtPalette.quantize(gray);
   }
-  int toneValue(const uint8_t tone) const { return levels == 2 ? (tone ? 255 : 0) : evenTonePalette.levels[tone]; }
+  int toneValue(const uint8_t tone) const { return levels == 2 ? (tone ? 255 : 0) : fourToneArtPalette.levels[tone]; }
 
   int levels;
   int edgeBoost;

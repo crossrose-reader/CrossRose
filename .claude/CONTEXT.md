@@ -28,6 +28,7 @@ Refer to https://freeink.org/llms.txt for guidance.
 - Kindle EPUBs may contain paired high-res and old-Kindle fallback images. `ChapterHtmlSlimParser` should skip `<img>` nodes with `data-AmznRemoved-M8` to avoid duplicate stacked images.
 - After image/layout pipeline changes that affect cached EPUB output, clear the affected `.crosspoint/epub_<hash>/` cache if behavior looks stale.
 - Four-tone artwork (`GfxRenderer::displayGrayArtwork()`, used by Carousel's Home covers on the Picco) leaves gray ink that the controller records as black. `GfxRenderer` re-drives it on the next refresh (`retireGrayArtwork()`), so display code must go through `GfxRenderer`, not `display.*` directly. A frame that keeps the same artwork calls `keepGrayArtworkForNextRefresh()` first and must use `FAST_REFRESH`.
+- Picco SE0400 (SSD2677) gray pass: a pixel's code is (MSB, LSB); the stock gray waveform lightens `01` to dark gray and `10` to light gray but leaves `11` black, which is how the shared overlay masks send dark gray (so text AA dark gray shows black). Artwork planes go through `GfxRenderer::encodeGrayArtworkPlanes()`, and new artwork uses the panel's FULL waveform, which drives every pixel without flashing; FAST left the previous picture showing through.
 
 ## UI Consistency
 

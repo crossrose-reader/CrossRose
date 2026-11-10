@@ -58,7 +58,7 @@ class GfxRenderer {
   mutable bool absoluteGrayPlanes = false;
   struct GrayArtwork {
     HeapByteBuffer base;  // B/W frame the controller holds under the gray ink
-    HeapByteBuffer mask;  // MSB plane: 1 bits are gray on the panel
+    HeapByteBuffer mask;  // 1 bits are gray on the panel (marked in either plane)
     bool onPanel = false;
     bool keepForNextRefresh = false;
   };
@@ -67,6 +67,9 @@ class GfxRenderer {
   // Called before every refresh. Returns true when the frame must be shown
   // through the grayscale-base path so gray pixels get driven to B/W.
   bool retireGrayArtwork(HalDisplay::RefreshMode mode) const;
+  // The Boox Picco's SE0400 panel (SSD2677), whose waveforms the artwork
+  // paths are tuned for.
+  bool isPiccoSe0400() const;
   Orientation orientation;
   bool fadingFix;
   uint8_t* frameBuffer = nullptr;
@@ -422,8 +425,10 @@ class GfxRenderer {
   // Four-tone artwork: the overlay grayscale pass applied to pictures rather
   // than glyph edges. The framebuffer holds the B/W base frame, with every
   // pixel that will be gray drawn black; lsb and msb are the overlay planes,
-  // drawn in the GRAYSCALE_LSB and GRAYSCALE_MSB render modes. The base is
-  // shown with `mode` and the gray pass follows straight away; the panel can
+  // drawn in the GRAYSCALE_LSB and GRAYSCALE_MSB render modes and then passed
+  // through encodeGrayArtworkPlanes(). The base is shown with `mode` (FAST
+  // becomes the full waveform on the Picco SE0400, which leaves no trace of
+  // the previous picture) and the gray pass follows straight away; the panel can
   // only lighten black pixels to gray, so the gray parts show black briefly.
   // The framebuffer keeps the base frame. The gray ink is cleared by whichever
   // refresh comes next, from any screen (see retireGrayArtwork). Keeps two
@@ -432,6 +437,10 @@ class GfxRenderer {
   // False on panels without an overlay waveform, while output is inverted
   // (the SDK skips grayscale there), and without PSRAM for the copies.
   bool supportsGrayArtwork() const;
+  // Rewrites overlay planes drawn for artwork into the codes this panel's
+  // gray waveform lightens, in place; each buffer is getBufferSize() bytes.
+  // Call once per drawn pair, before displayGrayArtwork().
+  void encodeGrayArtworkPlanes(uint8_t* lsb, uint8_t* msb) const;
   // Returns false, having displayed nothing, when unsupported or out of
   // memory; the caller then shows a black-and-white frame instead.
   bool displayGrayArtwork(const uint8_t* lsb, const uint8_t* msb,

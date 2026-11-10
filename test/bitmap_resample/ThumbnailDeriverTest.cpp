@@ -98,7 +98,7 @@ TEST(ThumbnailDitherer, FourToneLeavesNativeLevelsSolid) {
   for (uint8_t tone = 0; tone < 4; ++tone) {
     ThumbnailDitherer ditherer(16, 4);
     for (int y = 0; y < 8; ++y) {
-      for (int x = 0; x < 16; ++x) ASSERT_EQ(ditherer.processPixel(tone * 85, x), tone);
+      for (int x = 0; x < 16; ++x) ASSERT_EQ(ditherer.processPixel(fourToneArtPalette.levels[tone], x), tone);
       ditherer.nextRow();
     }
   }
@@ -116,7 +116,7 @@ TEST(ThumbnailDeriver, FourToneCopyOfNativeLevelsIsExactInEitherRowOrder) {
   const auto tone = [](const int x, const int y) { return (x / 5 + y / 3) % 4; };
   for (const bool topDown : {true, false}) {
     HalFile source(
-        grayBmp(width, height, topDown, [&](int x, int y) { return static_cast<uint8_t>(tone(x, y) * 85); }));
+        grayBmp(width, height, topDown, [&](int x, int y) { return fourToneArtPalette.levels[tone(x, y)]; }));
     // Flat 5x3 blocks: sharpening would ring at their edges, so compare interiors.
     Sink out;
     ASSERT_TRUE(deriveThumbnailBmp(source, out, {width, height, 0, 0, ThumbnailFormat::FourTone}));
@@ -203,7 +203,7 @@ TEST(ThumbnailDeriver, ReadsAndWritesAcrossRowBlocks) {
   const auto tone = [](const int x, const int y) { return (x / 5 + y / 3) % 4; };
   for (const bool topDown : {true, false}) {
     const auto bmp =
-        grayBmp(width, height, topDown, [&](int x, int y) { return static_cast<uint8_t>(tone(x, y) * 85); });
+        grayBmp(width, height, topDown, [&](int x, int y) { return fourToneArtPalette.levels[tone(x, y)]; });
     // A centred 300x100 crop skips the first 50 rows, which span several blocks.
     for (const int outHeight : {height, 100}) {
       HalFile source(bmp);
