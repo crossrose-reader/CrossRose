@@ -177,7 +177,8 @@ class ActivityManager {
   void goToReaderAndRunMenuAction(std::string path, uint8_t action);
   void preparePluginSleep();
   void goToSleep(bool fromTimeout = false);
-  // Turn Off / Restart: show the final screen, then save and close every activity.
+  // Turn Off / Restart: save and close every activity, then draw the final
+  // screen last, so no onExit() can paint over it.
   void goToPowerScreen(bool restarting);
   void goToBoot();
   void goToFullScreenMessage(std::string message, EpdFontFamily::Style style = EpdFontFamily::REGULAR);

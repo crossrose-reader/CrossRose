@@ -95,7 +95,7 @@ struct PluginCatalogSmokeTest {
 #if CROSSINK_APP_CAP_TOUCH
       publish(home);
       int tapX = -1, tapY = -1;
-      {
+      const auto findPowerTarget = [&] {
         RenderLock lock;
         for (int y = 0; y < renderer.getScreenHeight() && tapX < 0; y += 4) {
           for (int x = 0; x < renderer.getScreenWidth(); x += 4) {
@@ -112,6 +112,30 @@ struct PluginCatalogSmokeTest {
             }
           }
         }
+      };
+      findPowerTarget();
+      if (tapX < 0 && !home.coverGridUi && !minimal) {
+        // A list menu longer than one page shows Power on a later page: swipe
+        // up across the screen, in two input frames like a finger, to turn it.
+        const int swipeX = renderer.getScreenWidth() / 2;
+        const int swipeBottom = renderer.getScreenHeight() * 3 / 4;
+        const int swipeTop = renderer.getScreenHeight() / 4;
+        mappedInputManager.simulatorInjectTouchDown(swipeX, swipeBottom);
+        {
+          RenderLock lock;
+          home.loop();
+        }
+        mappedInputManager.simulatorClearInputFrame();
+        mappedInputManager.simulatorInjectTouchMove(swipeX, swipeTop);
+        mappedInputManager.simulatorInjectTouchRelease(swipeX, swipeTop);
+        {
+          RenderLock lock;
+          home.loop();
+        }
+        mappedInputManager.simulatorClearInputFrame();
+        require(!home.quickActionsPopup.isActive(), "Home menu swipe opened a popup");
+        publish(home);
+        findPowerTarget();
       }
       require(tapX >= 0, "Home Power entry has no touch target");
       mappedInputManager.simulatorInjectTouchDown(tapX, tapY);
@@ -276,8 +300,12 @@ struct PluginCatalogSmokeTest {
       }
       require(settingsVisible, "Settings missing from first Home page");
 #endif
-      // With every entry shown, Power is the last row (page 2 on Lyra): buttons reach it.
+      // With every entry shown, Power is the last row (page 2 on Lyra): buttons
+      // reach it, and on touch a swipe up turns to its page.
       verifyHomePowerEntry(home, false, "home-power-all-actions");
+#if CROSSINK_APP_CAP_TOUCH
+      if (mappedInputManager.hasTouch()) verifyHomePowerEntry(home, true, "home-power-all-actions-touch");
+#endif
       // Two servers exercise the existing picker without making a network request.
       if (OPDS_STORE.getCount() < 2)
         require(OPDS_STORE.addServer({"Second OPDS", "https://second.example.invalid"}), "Second OPDS fixture");

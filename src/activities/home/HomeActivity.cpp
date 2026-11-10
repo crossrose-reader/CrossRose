@@ -499,6 +499,31 @@ int getHomeMenuSelectionOffset(const std::vector<RecentBook>& recentBooks) {
   return metrics.homeContinueReadingInMenu ? 0 : getVisibleRecentBookCount(recentBooks);
 }
 
+// The list themes put the menu below the cover tile. render() draws it in
+// `menu`, and the touch pager turns pages by the rows the theme fits there.
+struct HomeListLayout {
+  int coverTileHeight;
+  Rect menu;
+};
+
+HomeListLayout homeListLayout(const GfxRenderer& renderer, const int menuItemCount) {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+  const int homeTop = metrics.homeTopPadding + UITheme::getHeaderRect(renderer, 0).y - metrics.topPadding;
+  int coverTileHeight = metrics.homeCoverTileHeight;
+  if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::CLASSIC) {
+    // Keep the four always-present actions clear of the button-hint strip on
+    // shorter displays; any optional actions paginate below them.
+    const int menuRows = std::min(4, menuItemCount);
+    const int requiredMenuHeight =
+        metrics.verticalSpacing + menuRows * metrics.menuRowHeight + std::max(0, menuRows - 1) * metrics.menuSpacing;
+    const int maxCoverHeight = safe.y + safe.height - homeTop - metrics.homeMenuTopOffset - requiredMenuHeight;
+    coverTileHeight = std::clamp(maxCoverHeight, 0, metrics.homeCoverTileHeight);
+  }
+  const int menuY = homeTop + coverTileHeight + metrics.homeMenuTopOffset;
+  return {coverTileHeight, Rect{safe.x, menuY, safe.width, std::max(0, safe.y + safe.height - menuY)}};
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -1991,7 +2016,28 @@ void HomeActivity::loop() {
       return;
     }
 
-    const int menuCount = getMenuItemCount();
+    const int menuOffset = getHomeMenuSelectionOffset(recentBooks);
+    const int menuItemCount = static_cast<int>(menuItems.size());
+#if CROSSINK_APP_CAP_TOUCH
+    // A long menu pages by its selected row, and only the visible page has
+    // touch targets. A vertical swipe turns the page, so every entry (Power is
+    // last) can be tapped without the buttons.
+    const auto swipe = mappedInput.wasSwipe();
+    if (swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down) {
+      const int pageItems = GUI.getButtonMenuPageItems(renderer, homeListLayout(renderer, menuItemCount).menu);
+      if (menuItemCount > pageItems) {
+        const int current = std::clamp(selectorIndex - menuOffset, 0, menuItemCount - 1);
+        selectorIndex = menuOffset + (swipe == MappedInputManager::SwipeDir::Up
+                                          ? ButtonNavigator::nextPageIndex(current, menuItemCount, pageItems)
+                                          : ButtonNavigator::previousPageIndex(current, menuItemCount, pageItems));
+        requestUpdate();
+      }
+      return;
+    }
+#endif
+
+    // Count the list built above rather than rebuilding it in getMenuItemCount().
+    const int menuCount = menuOffset + menuItemCount;
     buttonNavigator.onNext([this, menuCount] {
       selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
       requestUpdate();
@@ -2235,16 +2281,8 @@ void HomeActivity::render(RenderLock&&) {
 
   auto menuItems = buildSelectableHomeMenuItems(hasPlugins, hasReadingStats, hasBookmarks, hasClippings,
                                                 metrics.homeContinueReadingInMenu && !recentBooks.empty());
-  int homeCoverTileHeight = metrics.homeCoverTileHeight;
-  if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::CLASSIC) {
-    // Keep the four always-present actions clear of the button-hint strip on
-    // shorter displays; any optional actions paginate below them.
-    const int menuRows = std::min(4, static_cast<int>(menuItems.size()));
-    const int requiredMenuHeight =
-        metrics.verticalSpacing + menuRows * metrics.menuRowHeight + std::max(0, menuRows - 1) * metrics.menuSpacing;
-    const int maxCoverHeight = safe.y + safe.height - homeTop - metrics.homeMenuTopOffset - requiredMenuHeight;
-    homeCoverTileHeight = std::clamp(maxCoverHeight, 0, metrics.homeCoverTileHeight);
-  }
+  const HomeListLayout listLayout = homeListLayout(renderer, static_cast<int>(menuItems.size()));
+  const int homeCoverTileHeight = listLayout.coverTileHeight;
 
   GUI.drawHeader(renderer, UITheme::getHeaderRect(renderer, metrics.homeTopPadding),
                  metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr,
@@ -2263,17 +2301,13 @@ void HomeActivity::render(RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this),
                           hasAnyBookStats(currentBookStats) ? &currentBookStats : nullptr, currentBookProgressPercent);
 
-  const int menuStartY = homeTop + homeCoverTileHeight + metrics.homeMenuTopOffset;
-  const int menuEndY = safe.y + safe.height;
-  const int menuHeight = std::max(0, menuEndY - menuStartY);
-
   const bool isCarouselTheme =
       static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme) == CrossPointSettings::UI_THEME::LYRA_CAROUSEL;
   const int menuSelectedIndex = isCarouselTheme && mappedInput.hasTouchHardware()
                                     ? carouselMenuTouchDownIndex
                                     : selectorIndex - getHomeMenuSelectionOffset(recentBooks);
   GUI.drawButtonMenu(
-      renderer, Rect{safe.x, menuStartY, safe.width, menuHeight}, static_cast<int>(menuItems.size()), menuSelectedIndex,
+      renderer, listLayout.menu, static_cast<int>(menuItems.size()), menuSelectedIndex,
       [&menuItems](int index) { return menuItems[index].label; },
       [&menuItems](int index) { return menuItems[index].icon; });
 

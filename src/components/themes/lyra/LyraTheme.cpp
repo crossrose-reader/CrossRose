@@ -640,14 +640,20 @@ void LyraTheme::drawEmptyRecents(const GfxRenderer& renderer, const Rect rect) c
   renderer.drawText(UI_10_FONT_ID, rect.x + padding, rect.y + rect.height / 2 + 2, tr(STR_START_READING), true);
 }
 
+int LyraTheme::getButtonMenuPageItems(const GfxRenderer&, const Rect rect) const {
+  constexpr int maxVisibleItems = 7;
+  const auto& menuMetrics = UITheme::getInstance().getMetrics();
+  const int rowStep = menuMetrics.menuRowHeight + menuMetrics.menuSpacing;
+  return std::clamp((rect.height + menuMetrics.menuSpacing) / rowStep, 1, maxVisibleItems);
+}
+
 void LyraTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                                const std::function<const char*(int index)>& buttonLabel,
                                const std::function<UIIcon(int index)>& rowIcon) const {
   const auto& menuMetrics = UITheme::getInstance().getMetrics();
 
-  constexpr int maxVisibleItems = 7;
   const int rowStep = menuMetrics.menuRowHeight + menuMetrics.menuSpacing;
-  const int pageItems = std::clamp((rect.height + menuMetrics.menuSpacing) / rowStep, 1, maxVisibleItems);
+  const int pageItems = getButtonMenuPageItems(renderer, rect);
   const int totalPages = (buttonCount + pageItems - 1) / pageItems;
 
   if (totalPages > 1) {

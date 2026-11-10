@@ -1154,6 +1154,66 @@ static void writeWakeShortPressToNvs(const bool shortPressWakes) {
 
 void mirrorWakeShortPressToNvs() { writeWakeShortPressToNvs(SETTINGS.shortPowerPressWakes()); }
 
+enum class PowerDownKind : uint8_t { Sleep, TurnOff, Restart };
+
+// Plugins' SleepEnter hook. It may join a saved network and deliver queued
+// events, which can take up to ~20 s.
+static void notifyPluginsOfSleep(const std::string& book, const int progressPercent) {
+  RenderLock lock;
+  pluginevents::prepareSleep(book.c_str(), progressPercent, powerManager.getBatteryPercentage() >= 20);
+}
+
+// The shared first half of sleep, Turn Off and Restart: commit to powering
+// down, save every activity and put the final screen on the panel. The caller
+// holds a HalPowerManager::Lock and does what follows the final screen (the
+// Quick Resume frame, stats backup and diagnostics before deep sleep, or the
+// button wait before a reboot).
+static void saveStateAndShowFinalScreen(const PowerDownKind kind, const bool fromTimeout) {
+  // Boot resumes the open book only when this is set (see setup()'s routing).
+  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
+  // Every sleep mode leaves a complete retained frame on the e-ink panel. Keep
+  // it visible until the first useful reader or Home paint replaces it. After
+  // Turn Off or Restart, show the boot splash like any other power-on.
+  APP_STATE.showBootScreen = kind != PowerDownKind::Sleep;
+
+  // Commit before the outgoing activities' onExit() runs: a WiFi activity would
+  // otherwise silentRestart() in the middle of the teardown.
+  deepSleepInProgress = true;
+  activityManager.preparePluginSleep();
+
+  // Plugins hear about sleep and Turn Off, not Restart. Read the book and its
+  // progress while the reader is still open.
+  std::string book;
+  int progressPercent = 0;
+  if (kind != PowerDownKind::Restart) {
+    RenderLock lock;
+    book = activityManager.getCurrentBookPath();
+    progressPercent = activityManager.getScreenshotInfo().progressPercent;
+  }
+
+  switch (kind) {
+    case PowerDownKind::Sleep:
+      notifyPluginsOfSleep(book, progressPercent);
+      trustedtime::note();
+      activityManager.goToSleep(fromTimeout);
+      break;
+    case PowerDownKind::TurnOff:
+      trustedtime::note();
+      activityManager.goToPowerScreen(false);
+      // After the final screen, so a plugin's network wait never leaves the
+      // Power chooser frozen on the panel.
+      notifyPluginsOfSleep(book, progressPercent);
+      break;
+    case PowerDownKind::Restart:
+      trustedtime::note();
+      activityManager.goToPowerScreen(true);
+      break;
+  }
+  // Reader exit may already have saved this state. Save after the final screen
+  // appears, skipping an unchanged snapshot while still retrying failed saves.
+  APP_STATE.saveToFile();
+}
+
 // Sleep and Turn Off share one path: both end in deep sleep with only the
 // Power button armed as a wake source. Turn Off differs in what the next
 // power-on looks like: the "Powered off" screen instead of the sleep screen,
@@ -1163,37 +1223,12 @@ static void enterDeepSleepImpl(const bool fromTimeout, const bool turnOff) {
   gpio.stopButtonCapture();
 #endif
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
-  // Power-on after Turn Off resumes the open book the way a cold boot does.
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
 
   const bool isQuickResumeSleep =
       !turnOff && (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::QUICK_RESUME ||
                    (fromTimeout && SETTINGS.quickResumeSleepScreen ==
                                        CrossPointSettings::QUICK_RESUME_SLEEP_SCREEN::QUICK_RESUME_AFTER_TIMEOUT));
-  // Every sleep mode leaves a complete retained frame on the e-ink panel. Keep
-  // it visible until the first useful reader or Home paint replaces it. After
-  // Turn Off, show the boot splash like any other power-on.
-  APP_STATE.showBootScreen = turnOff;
-
-  // Commit to sleeping before goToSleep() runs the outgoing activity's onExit():
-  // a WiFi activity would otherwise silentRestart() here and reboot instead.
-  deepSleepInProgress = true;
-  activityManager.preparePluginSleep();
-  {
-    RenderLock lock;
-    const std::string book = activityManager.getCurrentBookPath();
-    pluginevents::prepareSleep(book.c_str(), activityManager.getScreenshotInfo().progressPercent,
-                               powerManager.getBatteryPercentage() >= 20);
-  }
-  trustedtime::note();
-  if (turnOff) {
-    activityManager.goToPowerScreen(false);
-  } else {
-    activityManager.goToSleep(fromTimeout);
-  }
-  // Reader exit may already have saved this state. Save after the sleep screen
-  // appears, skipping an unchanged snapshot while still retrying failed saves.
-  APP_STATE.saveToFile();
+  saveStateAndShowFinalScreen(turnOff ? PowerDownKind::TurnOff : PowerDownKind::Sleep, fromTimeout);
 
   // Refreshes are synchronous; display.deepSleep() also finishes pending
   // display work and power-off, so an extra settle delay serves no purpose.
@@ -1252,16 +1287,10 @@ static void turnOffDevice() { enterDeepSleepImpl(false, true); }
 
 static void restartDevice() {
   HalPowerManager::Lock powerLock;  // Full CPU speed while activities save their state
-  // Boot resumes the open book only when this is set (see setup()'s routing).
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
-  APP_STATE.showBootScreen = true;
-  // Same latch as sleep: a Wi-Fi activity's onExit() would otherwise
-  // silentRestart() in the middle of the teardown.
-  deepSleepInProgress = true;
-  activityManager.preparePluginSleep();
-  trustedtime::note();
-  activityManager.goToPowerScreen(true);
-  APP_STATE.saveToFile();
+  // Restart skips the sleep-only steps: the plugin SleepEnter hook (and its
+  // network wait), the Quick Resume frame, the stats backup and the sleep
+  // diagnostics. Progress, stats and settings are saved by the activities.
+  saveStateAndShowFinalScreen(PowerDownKind::Restart, false);
   // Never let a stale silent-restart target turn this into a splashless boot.
   clearSilentRestartReaderPageBuild();
   silentRebootMagic = 0;

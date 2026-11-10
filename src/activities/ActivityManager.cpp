@@ -803,8 +803,12 @@ void ActivityManager::loop() {
   }
   if (requestedUpdate.exchange(false)) {
     // Using direct notification to signal the render task to update
-    // Increment counter so multiple rapid calls won't be lost
-    if (renderTaskHandle) {
+    // Increment counter so multiple rapid calls won't be lost.
+    // A queued Turn Off / Restart replaces every screen at the start of the
+    // next main-loop pass, whatever requested it (a popup, a shortcut, a
+    // reader action). Repainting now would only hold the render lock and
+    // delay the power screen.
+    if (renderTaskHandle && !isPowerActionPending()) {
       xTaskNotify(renderTaskHandle, 1, eIncrement);
     }
   }

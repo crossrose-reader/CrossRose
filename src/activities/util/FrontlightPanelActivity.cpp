@@ -11,7 +11,6 @@
 
 #include "CrossPointSettings.h"
 #include "FilenameFontSystem.h"
-#include "GlobalActions.h"
 #include "MappedInputManager.h"
 #include "PowerMenu.h"
 #include "activities/ActivityManager.h"
@@ -309,24 +308,20 @@ bool FrontlightPanelActivity::handleHomeGesture() {
 
 void FrontlightPanelActivity::openPowerMenu() {
   powerMenuOpen = true;
-  // No cancel callback: cancelling returns to the panel (see loop()).
   PowerMenu::show(optionPopup);
+  // Cancelling returns to the panel. The centered popup also covered the screen
+  // below the drawer, which the drawer's own render never repaints. A chosen
+  // Turn Off / Restart needs no repaint: the main loop replaces every screen.
+  optionPopup.setCancelCallback([this] {
+    powerMenuOpen = false;
+    activityManager.restoreBackdropBehindCurrentOverlay();
+  });
   requestUpdate();
 }
 
 void FrontlightPanelActivity::loop() {
   if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) {
-    if (powerMenuOpen && !optionPopup.isActive()) {
-      powerMenuOpen = false;
-      // A chosen Turn Off / Restart runs at the start of the main loop's next
-      // iteration and replaces every activity, so nothing here needs a repaint.
-      if (!isPowerActionPending()) {
-        // Cancelled: the centered popup also covered the screen below the
-        // drawer, which the drawer's own render never repaints.
-        activityManager.restoreBackdropBehindCurrentOverlay();
-        requestUpdate();
-      }
-    }
+    if (!optionPopup.isActive()) powerMenuOpen = false;
     return;
   }
 
