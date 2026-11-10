@@ -382,13 +382,27 @@ constexpr uint32_t READER_RENDER_TASK_STACK_BYTES = FREEINK_MCU_S3 ? 24576 : 163
 // plain boot shows the splash. See setup() for the resolution.
 using BootResume = SleepWakePolicy::Resume;
 
-// Latched true once enterDeepSleep() commits to sleeping, before it tears down
+// Latched true once sleep, Turn Off or Restart commits, before it tears down
 // the current activity. WiFi activities call silentRestart() in onExit() to
 // clear heap fragmentation on the way out, but deep sleep is a full chip reset
 // on wake and already clears the heap, so rebooting here would just power the
-// device back up against the user's sleep gesture. Never cleared:
-// startDeepSleep() does not return, so a set latch only ends at the wakeup reset.
+// device back up against the user's sleep gesture (and Restart reboots anyway).
+// Never cleared: startDeepSleep() and ESP.restart() do not return, so a set
+// latch only ends at the next reset.
 static bool deepSleepInProgress = false;
+
+// Turn Off / Restart requested by a shortcut, popup or menu. Written and read
+// only on the main task; loop() runs it before any activity code, so the
+// teardown never destroys an activity whose loop() or callback is still running.
+static PowerAction pendingPowerAction = PowerAction::None;
+
+void requestPowerAction(const PowerAction action) {
+  if (action == PowerAction::None) return;
+  LOG_INF("MAIN", "%s requested", action == PowerAction::TurnOff ? "Turn off" : "Restart");
+  pendingPowerAction = action;
+}
+
+bool isPowerActionPending() { return pendingPowerAction != PowerAction::None; }
 
 static void restartWithSilentToken() {
   // Capture the live state for every destination without changing wake preferences.
@@ -632,6 +646,12 @@ bool handleGlobalPowerButtonAction(const CrossPointSettings::SHORT_PWRBTN action
       return true;
     case CrossPointSettings::SHORT_PWRBTN::WAKE_ONLY:
       return true;
+    case CrossPointSettings::SHORT_PWRBTN::TURN_OFF:
+      requestPowerAction(PowerAction::TurnOff);
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::RESTART:
+      requestPowerAction(PowerAction::Restart);
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::QUICK_LOCK:
       if (quickLockTrigger == QuickLockTrigger::None) {
         LOG_ERR("MAIN", "Quick Lock requested without an input trigger");
@@ -817,6 +837,10 @@ CrossPointSettings::SHORT_PWRBTN chordPowerAction(const ButtonShortcutController
       return Power::TOGGLE_FRONTLIGHT;
     case Chord::TogglePageTurnGestures:
       return Power::TOGGLE_PAGE_TURN_GESTURES;
+    case Chord::TurnOff:
+      return Power::TURN_OFF;
+    case Chord::Restart:
+      return Power::RESTART;
     case Chord::ToggleTouchscreen:
       return Power::TOGGLE_TOUCHSCREEN;
     default:
@@ -1109,9 +1133,13 @@ bool readWakeShortPressFromNvs() {
 #endif
 }
 
-void mirrorWakeShortPressToNvs() {
-#ifndef SIMULATOR
-  const uint8_t expected = SETTINGS.shortPowerPressWakes() ? 1 : 0;
+// Boot reads this before settings load to decide whether a short Power press
+// may wake the device or it must be held.
+static void writeWakeShortPressToNvs(const bool shortPressWakes) {
+#ifdef SIMULATOR
+  (void)shortPressWakes;
+#else
+  const uint8_t expected = shortPressWakes ? 1 : 0;
   nvs_handle_t handle;
   if (nvs_open(WAKE_NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) return;
   uint8_t current = 0;
@@ -1124,37 +1152,83 @@ void mirrorWakeShortPressToNvs() {
 #endif
 }
 
-// Enter deep sleep mode
-void enterDeepSleep(bool fromTimeout) {
+void mirrorWakeShortPressToNvs() { writeWakeShortPressToNvs(SETTINGS.shortPowerPressWakes()); }
+
+enum class PowerDownKind : uint8_t { Sleep, TurnOff, Restart };
+
+// Plugins' SleepEnter hook. It may join a saved network and deliver queued
+// events, which can take up to ~20 s.
+static void notifyPluginsOfSleep(const std::string& book, const int progressPercent) {
+  RenderLock lock;
+  pluginevents::prepareSleep(book.c_str(), progressPercent, powerManager.getBatteryPercentage() >= 20);
+}
+
+// The shared first half of sleep, Turn Off and Restart: commit to powering
+// down, save every activity and put the final screen on the panel. The caller
+// holds a HalPowerManager::Lock and does what follows the final screen (the
+// Quick Resume frame, stats backup and diagnostics before deep sleep, or the
+// button wait before a reboot).
+static void saveStateAndShowFinalScreen(const PowerDownKind kind, const bool fromTimeout) {
+  // Boot resumes the open book only when this is set (see setup()'s routing).
+  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
+  // Every sleep mode leaves a complete retained frame on the e-ink panel. Keep
+  // it visible until the first useful reader or Home paint replaces it. After
+  // Turn Off or Restart, show the boot splash like any other power-on.
+  APP_STATE.showBootScreen = kind != PowerDownKind::Sleep;
+
+  // Commit before the outgoing activities' onExit() runs: a WiFi activity would
+  // otherwise silentRestart() in the middle of the teardown.
+  deepSleepInProgress = true;
+  activityManager.preparePluginSleep();
+
+  // Plugins hear about sleep and Turn Off, not Restart. Read the book and its
+  // progress while the reader is still open.
+  std::string book;
+  int progressPercent = 0;
+  if (kind != PowerDownKind::Restart) {
+    RenderLock lock;
+    book = activityManager.getCurrentBookPath();
+    progressPercent = activityManager.getScreenshotInfo().progressPercent;
+  }
+
+  switch (kind) {
+    case PowerDownKind::Sleep:
+      notifyPluginsOfSleep(book, progressPercent);
+      trustedtime::note();
+      activityManager.goToSleep(fromTimeout);
+      break;
+    case PowerDownKind::TurnOff:
+      trustedtime::note();
+      activityManager.goToPowerScreen(false);
+      // After the final screen, so a plugin's network wait never leaves the
+      // Power chooser frozen on the panel.
+      notifyPluginsOfSleep(book, progressPercent);
+      break;
+    case PowerDownKind::Restart:
+      trustedtime::note();
+      activityManager.goToPowerScreen(true);
+      break;
+  }
+  // Reader exit may already have saved this state. Save after the final screen
+  // appears, skipping an unchanged snapshot while still retrying failed saves.
+  APP_STATE.saveToFile();
+}
+
+// Sleep and Turn Off share one path: both end in deep sleep with only the
+// Power button armed as a wake source. Turn Off differs in what the next
+// power-on looks like: the "Powered off" screen instead of the sleep screen,
+// no Quick Resume frame, Power must be held to wake, and the boot splash shows.
+static void enterDeepSleepImpl(const bool fromTimeout, const bool turnOff) {
 #ifndef SIMULATOR
   gpio.stopButtonCapture();
 #endif
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
 
   const bool isQuickResumeSleep =
-      SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::QUICK_RESUME ||
-      (fromTimeout &&
-       SETTINGS.quickResumeSleepScreen == CrossPointSettings::QUICK_RESUME_SLEEP_SCREEN::QUICK_RESUME_AFTER_TIMEOUT);
-  // Every sleep mode leaves a complete retained frame on the e-ink panel. Keep
-  // it visible until the first useful reader or Home paint replaces it.
-  APP_STATE.showBootScreen = false;
-
-  // Commit to sleeping before goToSleep() runs the outgoing activity's onExit():
-  // a WiFi activity would otherwise silentRestart() here and reboot instead.
-  deepSleepInProgress = true;
-  activityManager.preparePluginSleep();
-  {
-    RenderLock lock;
-    const std::string book = activityManager.getCurrentBookPath();
-    pluginevents::prepareSleep(book.c_str(), activityManager.getScreenshotInfo().progressPercent,
-                               powerManager.getBatteryPercentage() >= 20);
-  }
-  trustedtime::note();
-  activityManager.goToSleep(fromTimeout);
-  // Reader exit may already have saved this state. Save after the sleep screen
-  // appears, skipping an unchanged snapshot while still retrying failed saves.
-  APP_STATE.saveToFile();
+      !turnOff && (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::QUICK_RESUME ||
+                   (fromTimeout && SETTINGS.quickResumeSleepScreen ==
+                                       CrossPointSettings::QUICK_RESUME_SLEEP_SCREEN::QUICK_RESUME_AFTER_TIMEOUT));
+  saveStateAndShowFinalScreen(turnOff ? PowerDownKind::TurnOff : PowerDownKind::Sleep, fromTimeout);
 
   // Refreshes are synchronous; display.deepSleep() also finishes pending
   // display work and power-off, so an extra settle delay serves no purpose.
@@ -1189,8 +1263,10 @@ void enterDeepSleep(bool fromTimeout) {
 #endif
   putTiltSensorToSleepForDeepSleep();
   display.deepSleep();
-  mirrorWakeShortPressToNvs();
-  LOG_DBG("MAIN", "Entering deep sleep");
+  // Turn Off always needs a held press to wake, whatever short Power does.
+  // The next successful boot mirrors the user's setting back.
+  writeWakeShortPressToNvs(!turnOff && SETTINGS.shortPowerPressWakes());
+  LOG_DBG("MAIN", "Entering deep sleep%s", turnOff ? " (turned off)" : "");
 
 #if FREEINK_DEVICE_PICCO
   if (usbWakeRequested) {
@@ -1202,6 +1278,60 @@ void enterDeepSleep(bool fromTimeout) {
   }
 #endif
   powerManager.startDeepSleep(gpio);
+}
+
+// Enter deep sleep mode
+void enterDeepSleep(bool fromTimeout) { enterDeepSleepImpl(fromTimeout, false); }
+
+static void turnOffDevice() { enterDeepSleepImpl(false, true); }
+
+static void restartDevice() {
+  HalPowerManager::Lock powerLock;  // Full CPU speed while activities save their state
+  // Restart skips the sleep-only steps: the plugin SleepEnter hook (and its
+  // network wait), the Quick Resume frame, the stats backup and the sleep
+  // diagnostics. Progress, stats and settings are saved by the activities.
+  saveStateAndShowFinalScreen(PowerDownKind::Restart, false);
+  // Never let a stale silent-restart target turn this into a splashless boot.
+  clearSilentRestartReaderPageBuild();
+  silentRebootMagic = 0;
+  Storage.shutdown();  // Flush the SDMMC FAT cache; a no-op on SPI cards
+
+  // The long press that chose Restart (Power, Back, Menu, a side button or a
+  // chord) may still be held. Rebooting under it would hand the held button to
+  // the first screen after boot: a held Back opens Home instead of the book, and
+  // a release can turn a page. Wait (bounded) for every button to be released.
+  constexpr unsigned long BUTTON_RELEASE_WAIT_MS = 5000;
+  const auto anyButtonPressed = [] {
+    for (uint8_t button = HalGPIO::BTN_BACK; button <= HalGPIO::BTN_POWER; ++button) {
+      if (gpio.isPressed(button)) return true;
+    }
+    return false;
+  };
+  const unsigned long waitStart = millis();
+  gpio.update();
+  while (anyButtonPressed() && millis() - waitStart < BUTTON_RELEASE_WAIT_MS) {
+    delay(10);
+    gpio.update();
+  }
+  LOG_INF("MAIN", "Restarting");
+  ESP.restart();  // Not esp_restart(): that is a no-op in the simulator
+}
+
+// Returns true when a requested Turn Off / Restart ran. On hardware neither returns.
+static bool runPendingPowerAction() {
+  const PowerAction action = pendingPowerAction;
+  pendingPowerAction = PowerAction::None;
+  switch (action) {
+    case PowerAction::TurnOff:
+      turnOffDevice();
+      return true;
+    case PowerAction::Restart:
+      restartDevice();
+      return true;
+    case PowerAction::None:
+      return false;
+  }
+  return false;
 }
 
 void setupDisplayAndFonts(const bool seamless, const bool loadReaderResources, const bool useReaderRenderStack) {
@@ -1805,6 +1935,10 @@ void loop() {
     }
     return;
   }
+
+  // Run a Turn Off / Restart queued last iteration before any activity or
+  // shortcut code sees this frame's input.
+  if (runPendingPowerAction()) return;
 
 #if FREEINK_DEVICE_PICCO
   bool slideSwitchChanged = false;

@@ -19,6 +19,10 @@ class SleepActivity final : public Activity {
   void onEnter() override;
   // Whether this screen is independent of the outgoing activity's saves.
   bool rendersBeforeExit() const;
+  // Clears the frame and draws the logo, the reader's name and `status`, as on
+  // the default sleep screen. PowerScreenActivity reuses it so both screens
+  // share one copy of the logo bitmap in flash.
+  static void drawLogoScreen(const GfxRenderer& renderer, const char* status);
 
  private:
 #ifdef SIMULATOR

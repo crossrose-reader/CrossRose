@@ -26,12 +26,16 @@ swipe on the main part of the Home screen. You do not need to start at the edge.
 | Swipe **left**  | Shows the next recent book |
 | Tap the book cover | Opens the book |
 
-The **Lyra** Home screen has one swipe: swipe **left** to show the next recent
-book. Use the on-screen menu for everything else.
+The **Lyra** Home screen swipes **left** to show the next recent book. When its
+menu has more entries than fit on the screen, swipe **up** or **down** to show
+the next or previous page of the menu; **Power** is the last entry. Use the
+on-screen menu for everything else.
 
 On X4 Pro, start a down-swipe for Settings below the very top edge. A down-swipe
 from the top edge opens the frontlight panel instead. You can still reach
-Settings by tapping the settings icon in that panel.
+Settings by tapping the settings icon in that panel. On X4 Pro and BOOX Picco,
+tap the power icon at the top left of that panel to choose **Turn Off** or
+**Restart**.
 
 ### Browse Files
 
@@ -51,6 +55,7 @@ Open File Transfer to access OPDS Browser.
 - **Bookmarks & Clippings**, if you have saved any
 - **Reading Stats**, if reading stats tracking is on
 - **File Transfer**
+- **Power**, to choose **Turn Off** or **Restart**
 
 Tap an item to open it. Tap outside the panel to close it.
 

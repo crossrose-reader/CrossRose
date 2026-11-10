@@ -452,6 +452,10 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return Chord::CHORD_TOGGLE_TOUCHSCREEN;
         case Action::TOGGLE_PAGE_TURN_GESTURES:
           return Chord::CHORD_TOGGLE_PAGE_TURN_GESTURES;
+        case Action::TURN_OFF:
+          return Chord::CHORD_TURN_OFF;
+        case Action::RESTART:
+          return Chord::CHORD_RESTART;
         case Action::QUICK_LOCK:
           return Chord::CHORD_QUICK_LOCK;
         case Action::HOME_READER:
@@ -526,6 +530,10 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return LongPress::LONG_MENU_ROTATE_FLIP;
         case Action::TOGGLE_PAGE_TURN_GESTURES:
           return LongPress::LONG_MENU_TOGGLE_PAGE_TURN_GESTURES;
+        case Action::TURN_OFF:
+          return LongPress::LONG_MENU_TURN_OFF;
+        case Action::RESTART:
+          return LongPress::LONG_MENU_RESTART;
         case Action::PAGE_TURN:
         case Action::PREVIOUS_PAGE:
         case Action::NEARBY_POSITION_SYNC:

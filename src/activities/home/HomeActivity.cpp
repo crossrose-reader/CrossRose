@@ -32,6 +32,7 @@
 #include "FilenameFontSystem.h"
 #include "GlobalActions.h"
 #include "MappedInputManager.h"
+#include "PowerMenu.h"
 #include "RecentBookProgress.h"
 #include "RecentBooksStore.h"
 #include "SavedItemsHomeActivity.h"
@@ -62,6 +63,7 @@ enum class HomeMenuAction {
   Bookmarks,
   FileTransfer,
   Settings,
+  Power,
 };
 
 struct HomeMenuEntry {
@@ -71,7 +73,9 @@ struct HomeMenuEntry {
 };
 
 struct HomeMenuEntries {
-  static constexpr int kCapacity = 8;
+  // Largest list: Continue Reading, Browse Files, Library, Plugins, Reading
+  // Stats, saved items, File Transfer, Settings and Power. push() drops extras.
+  static constexpr int kCapacity = 9;
   std::array<HomeMenuEntry, kCapacity> entries{};
   int count = 0;
 
@@ -249,6 +253,8 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasPlugins, bool hasReadin
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
   items.push({tr(STR_SETTINGS_TITLE), Settings, HomeMenuAction::Settings});
+  // Last, so the other entries keep their indexes and stay on the first page.
+  items.push({tr(STR_POWER), UIIcon::Power, HomeMenuAction::Power});
 }
 
 HomeMenuEntries buildHomeMenuItems(bool hasPlugins, bool hasReadingStats, bool hasBookmarks, bool hasClippings) {
@@ -276,6 +282,7 @@ HomeMenuEntries buildMinimalMenuItems(bool hasPlugins, bool hasReadingStats, boo
   }
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
+  items.push({tr(STR_POWER), UIIcon::Power, HomeMenuAction::Power});
   return items;
 }
 
@@ -492,6 +499,31 @@ int getHomeMenuSelectionOffset(const std::vector<RecentBook>& recentBooks) {
   return metrics.homeContinueReadingInMenu ? 0 : getVisibleRecentBookCount(recentBooks);
 }
 
+// The list themes put the menu below the cover tile. render() draws it in
+// `menu`, and the touch pager turns pages by the rows the theme fits there.
+struct HomeListLayout {
+  int coverTileHeight;
+  Rect menu;
+};
+
+HomeListLayout homeListLayout(const GfxRenderer& renderer, const int menuItemCount) {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+  const int homeTop = metrics.homeTopPadding + UITheme::getHeaderRect(renderer, 0).y - metrics.topPadding;
+  int coverTileHeight = metrics.homeCoverTileHeight;
+  if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::CLASSIC) {
+    // Keep the four always-present actions clear of the button-hint strip on
+    // shorter displays; any optional actions paginate below them.
+    const int menuRows = std::min(4, menuItemCount);
+    const int requiredMenuHeight =
+        metrics.verticalSpacing + menuRows * metrics.menuRowHeight + std::max(0, menuRows - 1) * metrics.menuSpacing;
+    const int maxCoverHeight = safe.y + safe.height - homeTop - metrics.homeMenuTopOffset - requiredMenuHeight;
+    coverTileHeight = std::clamp(maxCoverHeight, 0, metrics.homeCoverTileHeight);
+  }
+  const int menuY = homeTop + coverTileHeight + metrics.homeMenuTopOffset;
+  return {coverTileHeight, Rect{safe.x, menuY, safe.width, std::max(0, safe.y + safe.height - menuY)}};
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -540,22 +572,14 @@ static_assert(HomeActivity::kMaxCachedBooks >= LyraCarouselMetrics::values.homeR
               "kMaxCachedBooks must cover all carousel slots");
 
 int HomeActivity::getMenuItemCount() const {
-  if (coverGridUi) return static_cast<int>(recentBooks.size()) + (4 + hasPlugins);
+  // Cover Grid tabs: Browse Files, Library, [Plugins], File Transfer, Settings, Power.
+  if (coverGridUi) return static_cast<int>(recentBooks.size()) + (5 + hasPlugins);
+  // Count the list the themes draw, so a new entry cannot be unreachable by buttons.
   const auto& metrics = UITheme::getInstance().getMetrics();
-  int count = 4;  // File Browser, Library, File transfer, Settings
-  if (!metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
-    count += getVisibleRecentBookCount();
-  } else if (metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
-    count++;  // Continue Reading menu item
-  }
-  if (hasPlugins) count++;
-  if (hasReadingStats) {
-    count++;
-  }
-  if (hasBookmarks || hasClippings) {
-    count++;
-  }
-  return count;
+  return getHomeMenuSelectionOffset(recentBooks) +
+         buildSelectableHomeMenuItems(hasPlugins, hasReadingStats, hasBookmarks, hasClippings,
+                                      metrics.homeContinueReadingInMenu && !recentBooks.empty())
+             .size();
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
@@ -1445,12 +1469,11 @@ void HomeActivity::loop() {
     };
     buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Up}, [&] { cycleBand(0, bookCount, -1); });
     buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Down}, [&] { cycleBand(0, bookCount, 1); });
-    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Left}, [this, &cycleBand] {
-      cycleBand(static_cast<int>(recentBooks.size()), 4 + hasPlugins, -1);
-    });
-    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right}, [this, &cycleBand] {
-      cycleBand(static_cast<int>(recentBooks.size()), 4 + hasPlugins, 1);
-    });
+    const int tabCount = getMenuItemCount() - bookCount;
+    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Left},
+                                         [&cycleBand, bookCount, tabCount] { cycleBand(bookCount, tabCount, -1); });
+    buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right},
+                                         [&cycleBand, bookCount, tabCount] { cycleBand(bookCount, tabCount, 1); });
     return;
   }
 
@@ -1509,6 +1532,9 @@ void HomeActivity::loop() {
             break;
           case HomeMenuAction::FileTransfer:
             onFileTransferOpen();
+            break;
+          case HomeMenuAction::Power:
+            onPowerMenuOpen();
             break;
           case HomeMenuAction::ContinueReading:
           case HomeMenuAction::Settings:
@@ -1757,6 +1783,9 @@ void HomeActivity::loop() {
       case HomeMenuAction::Settings:
         onSettingsOpen();
         break;
+      case HomeMenuAction::Power:
+        onPowerMenuOpen();
+        break;
     }
   };
 
@@ -1987,7 +2016,28 @@ void HomeActivity::loop() {
       return;
     }
 
-    const int menuCount = getMenuItemCount();
+    const int menuOffset = getHomeMenuSelectionOffset(recentBooks);
+    const int menuItemCount = static_cast<int>(menuItems.size());
+#if CROSSINK_APP_CAP_TOUCH
+    // A long menu pages by its selected row, and only the visible page has
+    // touch targets. A vertical swipe turns the page, so every entry (Power is
+    // last) can be tapped without the buttons.
+    const auto swipe = mappedInput.wasSwipe();
+    if (swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down) {
+      const int pageItems = GUI.getButtonMenuPageItems(renderer, homeListLayout(renderer, menuItemCount).menu);
+      if (menuItemCount > pageItems) {
+        const int current = std::clamp(selectorIndex - menuOffset, 0, menuItemCount - 1);
+        selectorIndex = menuOffset + (swipe == MappedInputManager::SwipeDir::Up
+                                          ? ButtonNavigator::nextPageIndex(current, menuItemCount, pageItems)
+                                          : ButtonNavigator::previousPageIndex(current, menuItemCount, pageItems));
+        requestUpdate();
+      }
+      return;
+    }
+#endif
+
+    // Count the list built above rather than rebuilding it in getMenuItemCount().
+    const int menuCount = menuOffset + menuItemCount;
     buttonNavigator.onNext([this, menuCount] {
       selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
       requestUpdate();
@@ -2036,7 +2086,14 @@ void HomeActivity::activateCoverGridSelection() {
       }
       break;
     case 4:
-      if (hasPlugins) onSettingsOpen();
+      if (hasPlugins) {
+        onSettingsOpen();
+      } else {
+        onPowerMenuOpen();
+      }
+      break;
+    case 5:
+      if (hasPlugins) onPowerMenuOpen();
       break;
   }
 }
@@ -2224,16 +2281,8 @@ void HomeActivity::render(RenderLock&&) {
 
   auto menuItems = buildSelectableHomeMenuItems(hasPlugins, hasReadingStats, hasBookmarks, hasClippings,
                                                 metrics.homeContinueReadingInMenu && !recentBooks.empty());
-  int homeCoverTileHeight = metrics.homeCoverTileHeight;
-  if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::CLASSIC) {
-    // Keep the four always-present actions clear of the button-hint strip on
-    // shorter displays; any optional actions paginate below them.
-    const int menuRows = std::min(4, static_cast<int>(menuItems.size()));
-    const int requiredMenuHeight =
-        metrics.verticalSpacing + menuRows * metrics.menuRowHeight + std::max(0, menuRows - 1) * metrics.menuSpacing;
-    const int maxCoverHeight = safe.y + safe.height - homeTop - metrics.homeMenuTopOffset - requiredMenuHeight;
-    homeCoverTileHeight = std::clamp(maxCoverHeight, 0, metrics.homeCoverTileHeight);
-  }
+  const HomeListLayout listLayout = homeListLayout(renderer, static_cast<int>(menuItems.size()));
+  const int homeCoverTileHeight = listLayout.coverTileHeight;
 
   GUI.drawHeader(renderer, UITheme::getHeaderRect(renderer, metrics.homeTopPadding),
                  metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr,
@@ -2252,17 +2301,13 @@ void HomeActivity::render(RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this),
                           hasAnyBookStats(currentBookStats) ? &currentBookStats : nullptr, currentBookProgressPercent);
 
-  const int menuStartY = homeTop + homeCoverTileHeight + metrics.homeMenuTopOffset;
-  const int menuEndY = safe.y + safe.height;
-  const int menuHeight = std::max(0, menuEndY - menuStartY);
-
   const bool isCarouselTheme =
       static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme) == CrossPointSettings::UI_THEME::LYRA_CAROUSEL;
   const int menuSelectedIndex = isCarouselTheme && mappedInput.hasTouchHardware()
                                     ? carouselMenuTouchDownIndex
                                     : selectorIndex - getHomeMenuSelectionOffset(recentBooks);
   GUI.drawButtonMenu(
-      renderer, Rect{safe.x, menuStartY, safe.width, menuHeight}, static_cast<int>(menuItems.size()), menuSelectedIndex,
+      renderer, listLayout.menu, static_cast<int>(menuItems.size()), menuSelectedIndex,
       [&menuItems](int index) { return menuItems[index].label; },
       [&menuItems](int index) { return menuItems[index].icon; });
 
@@ -2411,4 +2456,11 @@ void HomeActivity::onSavedItemsOpen() {
     return;
   }
   startActivityForResult(std::move(savedItems), [this](const ActivityResult&) { requestUpdate(); });
+}
+
+void HomeActivity::onPowerMenuOpen() {
+  // Reuse the Quick Actions popup: Home's loop and render already route input to
+  // it and block global shortcuts while it is open, so Home needs no second one.
+  PowerMenu::show(quickActionsPopup);
+  requestUpdate();
 }

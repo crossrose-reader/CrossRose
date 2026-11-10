@@ -201,6 +201,10 @@ int RoundedRaffTheme::getMenuRowHeight(const GfxRenderer& renderer) const {
   return renderer.getLineHeight(kTitleFontId) + 15;
 }
 
+int RoundedRaffTheme::getButtonMenuPageItems(const GfxRenderer& renderer, const Rect rect) const {
+  return std::max(1, rect.height / (getMenuRowHeight(renderer) + kSelectableRowGap));
+}
+
 void RoundedRaffTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                                       const std::function<const char*(int index)>& buttonLabel,
                                       const std::function<UIIcon(int index)>& rowIcon) const {
@@ -210,7 +214,7 @@ void RoundedRaffTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int butt
   const int rowHeight = getMenuRowHeight(renderer);
   const int rowGap = kSelectableRowGap;
   const int rowStep = rowHeight + rowGap;
-  const int pageItems = std::max(1, rect.height / rowStep);
+  const int pageItems = getButtonMenuPageItems(renderer, rect);
   const int safeSelectedIndex = std::max(0, selectedIndex);
   const int pageStartIndex = (safeSelectedIndex / pageItems) * pageItems;
   const int menuTop = rect.y;

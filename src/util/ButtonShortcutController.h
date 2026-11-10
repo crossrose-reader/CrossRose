@@ -45,6 +45,8 @@ class ButtonShortcutController {
     SelectChapter = 34,
     RotateFlip = 35,
     TogglePageTurnGestures = 36,
+    TurnOff = 37,
+    Restart = 38,
   };
 
   enum class Event : uint8_t { None, QuickLockChanged, Screenshot, PageTurn, ConfiguredAction, TouchscreenEscapeHatch };
