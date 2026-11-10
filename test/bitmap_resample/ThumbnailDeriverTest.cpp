@@ -1,4 +1,5 @@
 #include <BitmapHelpers.h>
+#include <BufferedPrint.h>
 #include <ThumbnailDeriver.h>
 #include <ThumbnailFormat.h>
 #include <gtest/gtest.h>
@@ -193,4 +194,80 @@ TEST(ThumbnailSource, AspectFillHeightKeepsTheCoverAspectWithinRange) {
   // Without a larger maximum it is the plain crop-to-fill height.
   EXPECT_EQ(aspectFillHeight(500, 1000, 296, 468, 0), 468);
   EXPECT_EQ(aspectFillHeight(0, 1000, 296, 468, 578), 468);
+}
+
+TEST(ThumbnailDeriver, ReadsAndWritesAcrossRowBlocks) {
+  // 300-byte rows: the source is read in blocks of 13 rows and the output
+  // written in blocks of 53 (four-tone) or 102 (one-bit) rows.
+  constexpr int width = 300, height = 200;
+  const auto tone = [](const int x, const int y) { return (x / 5 + y / 3) % 4; };
+  for (const bool topDown : {true, false}) {
+    const auto bmp =
+        grayBmp(width, height, topDown, [&](int x, int y) { return static_cast<uint8_t>(tone(x, y) * 85); });
+    // A centred 300x100 crop skips the first 50 rows, which span several blocks.
+    for (const int outHeight : {height, 100}) {
+      HalFile source(bmp);
+      Sink out;
+      ASSERT_TRUE(deriveThumbnailBmp(source, out, {width, outHeight, width, outHeight, ThumbnailFormat::FourTone}));
+      ASSERT_EQ(out.bytes.size(), le32(out.bytes, 2));
+      const int cropY = (height - outHeight) / 2;
+      for (int y = 0; y < outHeight; ++y) {
+        if ((y + cropY) % 3 != 1) continue;  // compare flat-block interiors only
+        for (int x = 2; x < width; x += 5) {
+          EXPECT_EQ(toneAt(out.bytes, x, y), tone(x, y + cropY)) << topDown << " " << x << "," << y;
+        }
+      }
+    }
+    // Black and white stripes pass through the one-bit ditherer unchanged.
+    HalFile source(grayBmp(width, height, topDown,
+                           [](int x, int y) { return static_cast<uint8_t>((x / 7 + y / 4) % 2 ? 255 : 0); }));
+    Sink out;
+    ASSERT_TRUE(deriveThumbnailBmp(source, out, {width, height, 0, 0, ThumbnailFormat::OneBit}));
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) ASSERT_EQ(toneAt(out.bytes, x, y), (x / 7 + y / 4) % 2) << x << "," << y;
+    }
+  }
+}
+
+TEST(BufferedPrint, GathersWritesAndReportsShortWritesAtFlush) {
+  struct Counter : Print {
+    std::vector<uint8_t> bytes;
+    size_t calls = 0;
+    size_t limit = SIZE_MAX;
+    size_t write(uint8_t value) override { return write(&value, 1); }
+    size_t write(const uint8_t* data, size_t size) override {
+      ++calls;
+      const size_t accepted = std::min(size, limit - bytes.size());
+      bytes.insert(bytes.end(), data, data + accepted);
+      return accepted;
+    }
+  };
+  std::vector<uint8_t> expected;
+  const auto fill = [&](BufferedPrint& out) {
+    for (int i = 0; i < 1000; ++i) {
+      out.write(static_cast<uint8_t>(i));
+      expected.push_back(static_cast<uint8_t>(i));
+    }
+    std::vector<uint8_t> rows(9000);
+    for (size_t i = 0; i < rows.size(); ++i) rows[i] = static_cast<uint8_t>(i * 7);
+    for (size_t at = 0; at < rows.size(); at += 300) out.write(rows.data() + at, 300);
+    expected.insert(expected.end(), rows.begin(), rows.end());
+  };
+  {
+    Counter sink;
+    BufferedPrint out(sink, 4096);
+    fill(out);
+    EXPECT_TRUE(out.flushBuffer());
+    EXPECT_EQ(sink.bytes, expected);
+    EXPECT_EQ(sink.calls, 3u);  // 10,000 bytes in 4 KB blocks
+  }
+  {
+    Counter sink;
+    sink.limit = 5000;
+    BufferedPrint out(sink, 4096);
+    expected.clear();
+    fill(out);
+    EXPECT_FALSE(out.flushBuffer());
+    EXPECT_EQ(out.write(uint8_t{1}), 0u);  // stays failed
+  }
 }

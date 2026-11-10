@@ -386,13 +386,20 @@ BmpReaderError Bitmap::readNextRow(uint8_t* data, uint8_t* rowBuffer) const {
   return BmpReaderError::Ok;
 }
 
-BmpReaderError Bitmap::readNextRowLuminance(uint8_t* luminance, uint8_t* rowBuffer) const {
-  if (resampleSums || sourceRowsRead >= height) return BmpReaderError::ShortReadRow;
-  if (file.read(rowBuffer, rowBytes) != rowBytes) return BmpReaderError::ShortReadRow;
-  ++sourceRowsRead;
-  ++outputRowsRead;
-  for (int x = 0; x < width; ++x) luminance[x] = pixelLuminance(rowBuffer, x);
-  return BmpReaderError::Ok;
+int Bitmap::readRawRows(uint8_t* buffer, const int maxRows) const {
+  if (resampleSums || maxRows <= 0) return 0;
+  const int rows = std::min(maxRows, height - sourceRowsRead);
+  if (rows <= 0) return 0;
+  // Under the size limits in parseHeaders(), rows * rowBytes fits an int.
+  const int bytes = rows * rowBytes;
+  if (file.read(buffer, static_cast<size_t>(bytes)) != bytes) return 0;
+  sourceRowsRead += rows;
+  outputRowsRead += rows;
+  return rows;
+}
+
+void Bitmap::rowLuminance(const uint8_t* row, uint8_t* luminance) const {
+  for (int x = 0; x < width; ++x) luminance[x] = pixelLuminance(row, x);
 }
 
 BmpReaderError Bitmap::rewindToData() const {

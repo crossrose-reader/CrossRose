@@ -70,10 +70,14 @@ class Bitmap {
   ~Bitmap();
   BmpReaderError parseHeaders();
   BmpReaderError readNextRow(uint8_t* data, uint8_t* rowBuffer) const;
-  // Reads the next source row as 8-bit luminance, one byte per pixel, without
-  // dithering or resampling. luminance holds getWidth() bytes and rowBuffer
-  // getRowBytes(). Do not mix with readNextRow() on the same pass.
-  BmpReaderError readNextRowLuminance(uint8_t* luminance, uint8_t* rowBuffer) const;
+  // Reads up to maxRows of the next source rows, undecoded, in a single file
+  // read: per-call SD overhead dwarfs a row's bytes. buffer holds
+  // maxRows * getRowBytes(). Returns the rows read, or 0 at the end of the
+  // image or on a short read. Do not mix with readNextRow() on the same pass.
+  int readRawRows(uint8_t* buffer, int maxRows) const;
+  // Converts one row from readRawRows() to 8-bit luminance, one byte per
+  // pixel, without dithering or resampling. luminance holds getWidth() bytes.
+  void rowLuminance(const uint8_t* row, uint8_t* luminance) const;
   BmpReaderError rewindToData() const;
   // Downsample high-color images before error diffusion. This is intentionally
   // limited to smaller output dimensions; the renderer still handles upscale.

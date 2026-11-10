@@ -1,6 +1,7 @@
 #include "Epub.h"
 
 #include <ArduinoJson.h>
+#include <BufferedPrint.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <GifImageLayout.h>
@@ -37,6 +38,10 @@
 
 namespace {
 constexpr int kDefaultThumbHeight = 180;
+// The 8-bit thumbnail source is written as a 1 KB palette byte by byte and
+// then a row per call; one SD write per block saves about 0.35 s per cover on
+// the Picco. Heap, freed when the source is written.
+constexpr size_t kThumbSourceWriteBlockBytes = 4096;
 constexpr char kXLocationsPath[] = "META-INF/x-locations.json";
 constexpr char kXLocationsFormat[] = "x-locations";
 constexpr char kLegacyXLocationsFormat[] = "crossink-locations";
@@ -1574,10 +1579,16 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_WIDTH = width;
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail JPG decode");
-    const bool success = gray8 ? JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(
-                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight)
-                               : JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(
-                                     coverJpg, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
+    bool success;
+    if (gray8) {
+      BufferedPrint buffered(thumbBmp, kThumbSourceWriteBlockBytes);
+      success = JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(coverJpg, buffered, THUMB_TARGET_WIDTH,
+                                                                     THUMB_TARGET_HEIGHT, sourceMaxHeight);
+      success = buffered.flushBuffer() && success;
+    } else {
+      success = JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(coverJpg, thumbBmp, THUMB_TARGET_WIDTH,
+                                                                    THUMB_TARGET_HEIGHT, adaptiveContain);
+    }
     // Explicitly close() files before leaving the converter path.
     coverJpg.close();
     thumbBmp.close();
@@ -1606,10 +1617,16 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     int THUMB_TARGET_WIDTH = width;
     int THUMB_TARGET_HEIGHT = height;
     releaseReaderSdFontCachesBeforeCoverDecode(renderer, readerFontId, "thumbnail PNG decode");
-    const bool success = gray8 ? PngToBmpConverter::pngFileToGray8BmpStreamWithSize(
-                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight)
-                               : PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(
-                                     coverPng, thumbBmp, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, adaptiveContain);
+    bool success;
+    if (gray8) {
+      BufferedPrint buffered(thumbBmp, kThumbSourceWriteBlockBytes);
+      success = PngToBmpConverter::pngFileToGray8BmpStreamWithSize(coverPng, buffered, THUMB_TARGET_WIDTH,
+                                                                   THUMB_TARGET_HEIGHT, sourceMaxHeight);
+      success = buffered.flushBuffer() && success;
+    } else {
+      success = PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(coverPng, thumbBmp, THUMB_TARGET_WIDTH,
+                                                                  THUMB_TARGET_HEIGHT, adaptiveContain);
+    }
     // Explicitly close() files before leaving the converter path.
     coverPng.close();
     thumbBmp.close();

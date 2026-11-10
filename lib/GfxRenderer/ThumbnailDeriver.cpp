@@ -10,6 +10,7 @@
 
 #include "Bitmap.h"
 #include "BitmapHelpers.h"
+#include "BufferedPrint.h"
 
 namespace {
 
@@ -19,6 +20,10 @@ namespace {
 constexpr int kFourToneSharpenPercent = 100;
 constexpr int kMaxWidth = 2048;
 constexpr int kMaxHeight = 3072;
+// Rows move to and from the SD card in blocks of about this size. A read
+// costs about 1.4 ms on the Picco whatever its size up to a few sectors, so
+// one call per 296-byte row spent 0.6 s of each 0.8 s derivation reading.
+constexpr size_t kIoBlockBytes = 4096;
 
 bool writeAll(Print& out, const uint8_t* data, const size_t size) { return out.write(data, size) == size; }
 
@@ -78,7 +83,7 @@ void sharpenRow(const uint8_t* above, const uint8_t* current, const uint8_t* bel
 
 }  // namespace
 
-bool deriveThumbnailBmp(HalFile& source, Print& out, const ThumbnailSpec& spec) {
+bool deriveThumbnailBmp(HalFile& source, Print& destination, const ThumbnailSpec& spec) {
   // The size limits match the BMP reader's, which keeps the resampler's
   // products inside 32 bits.
   if (spec.width <= 0 || spec.height <= 0 || spec.width > kMaxWidth || spec.height > kMaxHeight ||
@@ -111,12 +116,15 @@ bool deriveThumbnailBmp(HalFile& source, Print& out, const ThumbnailSpec& spec) 
   const int bitsPerPixel = thumbnailBitsPerPixel(spec.format);
   const uint32_t outRowBytes = (static_cast<uint32_t>(spec.width) * bitsPerPixel + 31) / 32 * 4;
 
-  // One scratch block for the whole conversion: the file row, its luminance,
-  // three resampled rows (the sharpening window), the sharpened row and the
-  // packed output row. Sizes follow the image, so the stack cannot hold them.
+  // One scratch block for the whole conversion: a block of file rows, the
+  // luminance of the row in use, three resampled rows (the sharpening window),
+  // the sharpened row and the packed output row. With the 4 KB output buffer,
+  // about 10 KB for Carousel's thumbnails, freed on return; sizes follow the
+  // image, so the stack cannot hold them.
   const size_t fileRowBytes = static_cast<size_t>(bitmap.getRowBytes());
+  const int readBlockRows = static_cast<int>(std::max<size_t>(1, kIoBlockBytes / fileRowBytes));
   const size_t scratchBytes =
-      fileRowBytes + static_cast<size_t>(srcWidth) + static_cast<size_t>(spec.width) * 4 + outRowBytes;
+      fileRowBytes * readBlockRows + static_cast<size_t>(srcWidth) + static_cast<size_t>(spec.width) * 4 + outRowBytes;
   auto scratch = makeUniqueNoThrow<uint8_t[]>(scratchBytes);
   auto sums = makeUniqueNoThrow<uint32_t[]>(spec.width);
   ThumbnailDitherer ditherer(spec.width, fourTone ? 4 : 2, fourTone ? 0 : ThumbnailDitherer::kOneBitEdgeBoost);
@@ -125,12 +133,13 @@ bool deriveThumbnailBmp(HalFile& source, Print& out, const ThumbnailSpec& spec) 
             static_cast<unsigned>(scratchBytes));
     return false;
   }
-  uint8_t* fileRow = scratch.get();
-  uint8_t* luminance = fileRow + fileRowBytes;
+  uint8_t* readBlock = scratch.get();
+  uint8_t* luminance = readBlock + fileRowBytes * readBlockRows;
   uint8_t* grayRows[3] = {luminance + srcWidth, luminance + srcWidth + spec.width,
                           luminance + srcWidth + spec.width * 2};
   uint8_t* sharpened = luminance + srcWidth + spec.width * 3;
   uint8_t* packed = sharpened + spec.width;
+  BufferedPrint out(destination, kIoBlockBytes);
 
   if (!writeHeader(out, spec.width, spec.height, bitmap.isTopDown(), bitsPerPixel, outRowBytes)) {
     LOG_ERR("THB", "Short write of thumbnail header");
@@ -139,15 +148,22 @@ bool deriveThumbnailBmp(HalFile& source, Print& out, const ThumbnailSpec& spec) 
 
   // Rows are consumed in file order and each is read once; the crop is
   // centred, so the file's row order does not change which rows are used.
-  int rowsRead = 0;  // file rows consumed; `luminance` holds row rowsRead - 1
+  int rowsRead = 0;   // file rows consumed; `luminance` holds row rowsRead - 1
+  int blockRows = 0;  // rows in readBlock
+  int blockNext = 0;  // the next of them to consume
   const auto readRow = [&](const int fileY) {
     while (rowsRead <= fileY) {
-      const BmpReaderError error = bitmap.readNextRowLuminance(luminance, fileRow);
-      if (error != BmpReaderError::Ok) {
-        LOG_ERR("THB", "Thumbnail source row %d unreadable: %s", rowsRead, Bitmap::errorToString(error));
-        return false;
+      if (blockNext == blockRows) {
+        blockRows = bitmap.readRawRows(readBlock, readBlockRows);
+        blockNext = 0;
+        if (blockRows <= 0) {
+          LOG_ERR("THB", "Thumbnail source row %d unreadable", rowsRead);
+          return false;
+        }
       }
-      ++rowsRead;
+      const uint8_t* raw = readBlock + fileRowBytes * blockNext++;
+      // Rows above the crop are passed over undecoded.
+      if (++rowsRead == fileY + 1) bitmap.rowLuminance(raw, luminance);
     }
     return true;
   };
@@ -222,6 +238,7 @@ bool deriveThumbnailBmp(HalFile& source, Print& out, const ThumbnailSpec& spec) 
       below = recycled;
     }
   }
+  ok = out.flushBuffer() && ok;
   if (!ok) LOG_ERR("THB", "Failed to derive %dx%d thumbnail", spec.width, spec.height);
   return ok;
 }
