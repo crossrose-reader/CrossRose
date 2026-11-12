@@ -123,6 +123,15 @@ layout may shift the destination page.
 
 ## `/.crosspoint/home_carousel_cache_<index>.bin`
 
+### Version 7
+
+Carousel's side covers are now drawn from thumbnails squeezed to their drawn
+width (75x417) instead of 200x390 thumbnails resampled on screen, so the
+header's `sideCoverW` and `sideCoverH` hold the new size and version 6
+snapshots are rebuilt. The layout is unchanged: a `CarouselCacheHeader`
+followed by one full framebuffer of black-and-white artwork. Four-tone cover
+art is drawn from the thumbnails and kept in memory only, not cached here.
+
 ### Version 6
 
 The v1.6.1 release normalizes development version 8 to version 6, one step
@@ -975,6 +984,53 @@ Binary layout:
 - `[25-40]` `timeOfDaySeconds[4]` (`uint32_t` LE each)
 - `[41-68]` `dayOfWeekSeconds[7]` (`uint32_t` LE each)
 - `[69-72]` `estimatedTimeLeftSeconds` (`uint32_t` LE, `0` means unavailable)
+
+## EPUB thumbnail revision 3
+
+Generated thumbnails end in `_v3.bmp` (adaptive thumbnails in `_fit_v3.bmp`),
+so thumbnails dithered by older firmware are not reused. Covers
+(`cover*_v2.bmp`) and inline pixel caches (`_v2.pxc`) keep revision 2. Recent
+books normalize to the new pattern on load, as for revision 2. Revision 2
+thumbnail files are no longer read; clearing a book's cache removes them.
+
+One-bit thumbnails are now error diffused with Stucki weights and a
+threshold that follows the pixel (edge enhancement) instead of the Atkinson
+filter. The file layout is the same 1 bpp top-down BMP.
+
+A thumbnail path can carry a format suffix before the extension:
+
+- no suffix: 1 bpp black and white, as before.
+- `_g4`: 2 bpp, palette black / 85 / 170 / white. Used for four-tone cover art
+  on panels that support it (Boox Picco). The palette names the tones; pixels
+  are dithered toward the levels the Picco's SE0400 panel actually shows,
+  about 50% and 75% white for the two grays.
+- `_g8`: 8 bpp grayscale source. Temporary: written while a cover is decoded,
+  used to derive the other formats, then deleted. One left behind by an
+  interrupted derivation is never reused. Carousel's is named
+  `thumb_296x468_v3_g8.bmp` and is 296 pixels wide and 468 to 578 high: the
+  cover is cropped only as far as both the centre (296:468) and the side
+  (200:390) framings need, so each crop comes from the cover itself.
+
+Carousel keeps, per book, `thumb_296x468_v3.bmp` and `thumb_75x417_v3.bmp`
+(the centred 200:390 crop of the cover, squeezed to the side cover's drawn
+width before dithering), plus the `_g4` form of both on four-tone builds. The
+side `_g4` thumbnail is written last, and only once the centre `_g4` exists,
+so Home regenerates a book's thumbnails until it is present. GIF covers have
+no `_g8` source: their side thumbnails, `_g4` included, are derived from the
+one-bit centre thumbnail and they get no centre `_g4`. When a JPEG or PNG
+cover's `_g8` source cannot be written, the one-bit thumbnails are made the
+same way but the `_g4` ones are left for the next visit. XTC books use the
+same suffixes on their unversioned `thumb_<W>x<H>.bmp` names; like GIF
+covers, their side thumbnails are derived from the one-bit centre thumbnail.
+
+Every other Home theme and the Library grid also get a `_g4` thumbnail per
+EPUB on four-tone builds, next to the one-bit thumbnail they draw and at the
+same size, adaptive (`_fit_v3_g4.bmp`) ones included. The cover is decoded
+once to a `_g8` source framed like the one-bit thumbnail (cropped to fill, or
+contained for adaptive ones), both formats are derived from it at that size,
+and the source is deleted. A GIF cover's `_g4` thumbnail is a 2 bpp copy of
+its one-bit thumbnail, with no grays, so that every EPUB thumbnail has one
+and Home does not decode the cover again on every visit. XTC books get none.
 
 ## EPUB decoded-image revision 2 (2.0.0)
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <HalDisplay.h>
+#include <Memory.h>
 #include <ScreenInsets.h>
 
 #include <array>
@@ -70,6 +71,12 @@ class HomeActivity final : public Activity {
   OptionPopup quickActionsPopup;
   uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
   size_t coverBufferSize = 0;      // Bytes allocated to coverBuffer
+  // A cover snapshot taken during a four-tone capture (FourToneCovers.h) has
+  // its gray pixels white; these PSRAM copies of the same region of the two
+  // capture planes hold their marks, LSB region then MSB region.
+  HeapByteBuffer coverPlanes;
+  size_t coverPlanesSize = 0;
+  bool coverBufferFourTone = false;
   // Logical rect last passed to drawRecentBookCover. The cover snapshot only
   // needs to cover this region, not the entire framebuffer, so we cache the
   // tile instead of all 48 KB. Set in render() before the call.
@@ -91,6 +98,41 @@ class HomeActivity final : public Activity {
 
   uint8_t* carouselFrames[kCarouselFrameCount] = {};
   bool carouselFramesReady = false;
+
+  // Four-tone cover art (Carousel on CROSSINK_APP_CAP_GRAY_COVER_ART builds).
+  // A position's artwork is drawn once into PSRAM frames: the B/W base (gray
+  // pixels black) and the two overlay planes. The planes leave the centre
+  // outline untinted, and the outline is thicker while the carousel row is
+  // selected, so each selection state gets its own pair; the base serves both.
+  // Showing a position again copies its frames instead of reading the
+  // thumbnails from SD. Up to 5 x 48 KB per position, kept until Home exits.
+  struct FourToneFrames {
+    // Whether the centre cover has a four-tone thumbnail: -1 not checked yet.
+    int8_t hasArt = -1;
+    bool baseReady = false;
+    std::array<bool, 2> planesReady{};  // indexed by selection state
+    HeapByteBuffer base;
+    std::array<HeapByteBuffer, 2> lsb;
+    std::array<HeapByteBuffer, 2> msb;
+  };
+  // The frames one render shows; all null when four tones are not available.
+  struct FourTonePicture {
+    const uint8_t* base = nullptr;
+    const uint8_t* lsb = nullptr;
+    const uint8_t* msb = nullptr;
+  };
+  std::array<FourToneFrames, kMaxCachedBooks> fourToneFrames;
+  uint64_t fourToneFramesKey = 0;
+  // What the four-tone picture on the panel shows; a render of the same state
+  // keeps it instead of repeating both refreshes.
+  bool fourToneShown = false;
+  int fourToneCenterIdx = -1;
+  bool fourToneSelected = false;
+  uint64_t fourToneKeyHash = 0;
+  // Set for the rest of the visit once four tones could not be shown (no
+  // PSRAM for the frames or the capture planes, or the pass could not start),
+  // on every theme.
+  bool fourToneUnavailable = false;
   bool carouselFramesInverted = false;
   bool carouselWarmupPending = false;
   ScreenInsets insetsBeforeFrontlightPanel;
@@ -121,7 +163,9 @@ class HomeActivity final : public Activity {
   void freeCoverBuffer();     // Free the stored cover buffer
   void invalidateCoverCache();
   void invalidatePolarityMismatchedCaches();
-  void preRenderCarouselFrames();
+  // renderViewedFrame = false only prepares the snapshot cache and leaves the
+  // viewed position's frame to be loaded when it is first needed.
+  void preRenderCarouselFrames(bool renderViewedFrame = true);
   void freeCarouselFrames();
   bool allocateCarouselFrameSlots(int targetFrameCount);
   bool saveCarouselFrameToDisk(uint64_t cacheKeyHash, int bookCount, int bookIdx, int slotIdx);
@@ -129,6 +173,14 @@ class HomeActivity final : public Activity {
   int chooseCarouselEvictionSlot(int centerIdx, int bookCount,
                                  std::optional<int> protectedBookIdx = std::nullopt) const;
   void renderCarouselFrameToCurrentBuffer(int bookIdx);
+  // Starts a four-tone capture for this render on themes drawn in one pass
+  // (every theme but Carousel); false when covers stay black and white.
+  bool beginFourToneCapture();
+  FourToneFrames* fourToneFramesFor(int centerIdx);
+  bool canShowFourToneCovers(int centerIdx);
+  FourTonePicture prepareFourToneFrames(const Rect& coverRect, int centerIdx, bool selected);
+  void invalidateFourToneFrames();
+  void resetFourToneCovers();
   void renderCarouselFrame(int bookIdx, int slotIdx);
   int getHighlightedBookIndex() const;
   int getVisibleRecentBookCount() const;

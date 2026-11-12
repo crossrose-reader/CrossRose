@@ -8,6 +8,7 @@
 - Set how long to touch and hold a word before word selection opens (400–1000 ms, in 100 ms steps) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 - Two thicker reader progress bars: Progress Bar Thickness for the top and bottom status bars now offers Extra Thick and Thickest after Thin, Medium and Thick, on the device and in the web settings page.
 - Turn Off and Restart, from the new Power entry at the end of the Home menu, the power icon at the top left of the panel you swipe down from the top (the frontlight panel on Picco and X4 Pro, the reader-details panel on Sticky), or any button shortcut or Quick Actions slot. Turn Off keeps the reader off until you press and hold Power, Restart reboots it, and both save your place and reopen the book you were reading.
+- On the Boox Picco, Home covers in every theme (Classic, Lyra, Lyra Extended, Lyra Carousel, RoundedRaff, Minimal, Dashboard and Cover Grid) and the covers in the Library's grid view are shown in four tones (white, two grays and black) instead of black and white. When the covers change, their gray parts show black for a moment before they lighten: the Picco's screen can only lighten black to gray. Each book's four-tone covers are made the first time it is shown. Dark Mode keeps black-and-white covers.
 
 ### Changed
 
@@ -19,6 +20,9 @@
 - Settings does not show Download Languages, and What's New does not offer a language Update, because CrossRose has no download server yet: both ended at "Downloads unavailable". What's New's Install Languages opens the Language list, which installs languages copied from the zip to the SD card.
 - Hyphenation Packs no longer restarts the reader to download a pack, which ended at "Downloads unavailable" for the same reason. Install and Update now say to copy the pack from the zip to the SD card; a pack already on the SD card installs as before.
 - On touchscreen devices, swipe up or down on the Lyra Home menu to show its next or previous page when it does not fit on the screen, so every entry can be tapped.
+- Black-and-white cover thumbnails on Home and in the Library keep more detail: small lettering is sharper and dark areas are cleaner. Thumbnails are generated again the first time each cover is shown.
+- Carousel's side covers are squeezed to their drawn width before they are dithered, instead of after.
+- Carousel decodes each cover once, instead of twice, when it makes a book's thumbnails.
 - What's New shows CrossRose's version (v1.0.0) in its header, and its Full changelog link points to CrossRose's releases page instead of CrossInk's. The notes themselves are unchanged, so if you already saw them in CrossInk 2.0, What's New does not open again.
 
 ### Fixed

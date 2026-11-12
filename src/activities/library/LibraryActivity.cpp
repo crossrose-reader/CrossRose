@@ -31,6 +31,7 @@
 #include "activities/util/ConfirmationActivity.h"
 #include "activities/util/KeyboardEntryActivity.h"
 #include "activities/util/OptionSelectionActivity.h"
+#include "components/FourToneCovers.h"
 #include "components/TouchHeaderBackButton.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
@@ -100,6 +101,7 @@ void LibraryActivity::onEnter() {
 
   pendingInput.clear();
   inputOverflow = false;
+  fourToneUnavailable = false;
   touchTracking = false;
   confirmLongPressCaptured = false;
   PendingOverlayResume resume;
@@ -1427,7 +1429,7 @@ void LibraryActivity::buildGrid(UiApp::ScreenType& screen) {
         const std::string path = UITheme::getCoverThumbPath(recent->coverBmpPath, coverWidth, coverHeight);
         if (!path.empty() && Storage.exists(path.c_str())) {
           FsFile file;
-          if (Storage.openFileForRead("LIB", path, file)) {
+          if (FourToneCovers::openThumb(renderer, path, file)) {
             Bitmap bitmap(file);
             if (bitmap.parseHeaders() == BmpReaderError::Ok && bitmap.getWidth() > 0 && bitmap.getHeight() > 0)
               drawn = renderer.drawBitmap(bitmap, x, y, coverWidth, coverHeight);
@@ -1492,12 +1494,20 @@ bool LibraryActivity::loadGridCover(const int row) {
   if (!recent || recent->coverState == RecentBook::CoverState::Missing) return false;
   if (!FsHelpers::hasEpubExtension(book.path) && !FsHelpers::hasXtcExtension(book.path)) return false;
   const std::string thumbPath = UITheme::getCoverThumbPath(recent->coverBmpPath, gridCoverWidth, gridCoverHeight);
-  if (hasValidGridThumb(thumbPath, gridCoverWidth, gridCoverHeight)) return false;
+  // EPUB thumbnails get a four-tone variant too (FourToneCovers.h).
+  const bool needsFourTone = FourToneCovers::enabled() && FsHelpers::hasEpubExtension(book.path) &&
+                             !thumbPath.empty() && !Storage.exists(FourToneCovers::variantPath(thumbPath).c_str());
+  if (hasValidGridThumb(thumbPath, gridCoverWidth, gridCoverHeight) && !needsFourTone) return false;
   if (FsHelpers::hasEpubExtension(book.path)) {
     Epub epub(book.path, "/.crosspoint");
     if (!epub.load(true, true, Epub::XLocationLoadMode::Skip)) {
       LOG_ERR("LIB", "Cannot load EPUB cover for %s", book.path.c_str());
       return false;
+    }
+    // Also writes a missing one-bit thumbnail from the same decode.
+    if (needsFourTone &&
+        !epub.generateFourToneThumbBmp(gridCoverWidth, gridCoverHeight, false, &renderer, SETTINGS.getReaderFontId())) {
+      LOG_DBG("LIB", "no four-tone grid thumbnail for %s", book.path.c_str());
     }
     if (epub.generateThumbBmp(gridCoverWidth, gridCoverHeight, &renderer, SETTINGS.getReaderFontId())) {
       if (!RECENT_BOOKS.updateBook(book.path, recent->title, recent->author, epub.getThumbBmpPath(),
@@ -1528,8 +1538,19 @@ void LibraryActivity::render(RenderLock&&) {
     drawScanScreen(tr(STR_LIBRARY_SCANNING));
     return;
   }
+  // The grid's covers come out in four tones where the panel can show them
+  // (FourToneCovers.h). Not under a popup, which refreshes the panel itself.
+  // The capture never outlives this render.
+  const bool fourTone = FourToneCovers::enabled() && gridEnabled() && !fourToneUnavailable && !actionPopup.isActive() &&
+                        !pendingCacheDeletedFeedback && renderer.supportsGrayArtwork();
+  struct CaptureEnd {
+    GfxRenderer& renderer;
+    ~CaptureEnd() { renderer.endGrayArtworkCapture(); }
+  } captureEnd{renderer};
   for (int pass = 0; pass < 8; ++pass) {
     renderer.clearScreen();
+    // Each pass starts afresh, marks included.
+    if (fourTone && !fourToneUnavailable && !renderer.beginGrayArtworkCapture()) fourToneUnavailable = true;
     const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
     if (mappedInput.hasTouchHardware())
       TouchHeaderBackButton::draw(renderer, uiTarget, header, tr(STR_LIBRARY), false,
@@ -1563,8 +1584,11 @@ void LibraryActivity::render(RenderLock&&) {
   // drawPopup() refreshes the panel itself; avoid repeating the same frame.
   if (pendingCacheDeletedFeedback) {
     GUI.drawPopup(renderer, tr(STR_BOOK_CACHE_DELETED));
-  } else {
-    renderer.displayBuffer();
+  } else if (!renderer.displayCapturedGrayArtwork()) {
+    // Nothing reached the panel, and the framebuffer holds the base frame.
+    LOG_ERR("LIB", "four-tone pass unavailable; keeping black-and-white covers");
+    fourToneUnavailable = true;
+    requestUpdate();
   }
 }
 

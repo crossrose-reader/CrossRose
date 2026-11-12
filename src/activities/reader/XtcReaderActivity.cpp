@@ -174,12 +174,11 @@ void XtcReaderActivity::onExit() {
 
   finalizeReadingStatsOnExit();
 
-  // Generate carousel thumbnails while XTC is still loaded so the home screen
-  // can display the cover on the very first render without a loading popup.
+  // Generate Carousel's centre thumbnail while XTC is still loaded, so Home
+  // only has to derive the small side thumbnails from it.
   if (xtc &&
       static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme) == CrossPointSettings::UI_THEME::LYRA_CAROUSEL) {
-    xtc->generateThumbBmp(LyraCarouselTheme::kCenterCoverW, LyraCarouselTheme::kCenterCoverH);
-    xtc->generateThumbBmp(LyraCarouselTheme::kSideCoverW, LyraCarouselTheme::kSideCoverH);
+    xtc->generateThumbBmp(LyraCarouselTheme::kCenterThumbW, LyraCarouselTheme::kCenterThumbH);
   }
 
   xtc.reset();

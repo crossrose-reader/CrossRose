@@ -27,6 +27,9 @@ Refer to https://freeink.org/llms.txt for guidance.
 - `lib/Epub/Epub/Page.cpp`: images must render only in `GfxRenderer::BW`; grayscale passes are text anti-aliasing passes only.
 - Kindle EPUBs may contain paired high-res and old-Kindle fallback images. `ChapterHtmlSlimParser` should skip `<img>` nodes with `data-AmznRemoved-M8` to avoid duplicate stacked images.
 - After image/layout pipeline changes that affect cached EPUB output, clear the affected `.crosspoint/epub_<hash>/` cache if behavior looks stale.
+- Four-tone artwork (`GfxRenderer::displayGrayArtwork()`, used by Carousel's Home covers on the Picco) leaves gray ink that the controller records as black. `GfxRenderer` re-drives it on the next refresh (`retireGrayArtwork()`), so display code must go through `GfxRenderer`, not `display.*` directly. A frame that keeps the same artwork calls `keepGrayArtworkForNextRefresh()` first and must use `FAST_REFRESH`.
+- Other Home themes and the Library grid get four-tone covers through `GfxRenderer::beginGrayArtworkCapture()` + `displayCapturedGrayArtwork()`: covers opened with `FourToneCovers::openThumb()` record their grays in capture planes and stay white in the framebuffer until display. White drawn over a captured cover must go through a white/dithered `fillRect`, `maskRoundedRectOutsideCorners` or a one-bit bitmap to unmark it; any region cache of a captured screen must also cache the planes (`copyGrayArtworkRegionToBuffer()`).
+- Picco SE0400 (SSD2677) gray pass: a pixel's code is (MSB, LSB); the stock gray waveform lightens `01` to dark gray and `10` to light gray but leaves `11` black, which is how the shared overlay masks send dark gray (so text AA dark gray shows black). Artwork planes go through `GfxRenderer::encodeGrayArtworkPlanes()`, and new artwork uses the panel's FULL waveform, which drives every pixel without flashing; FAST left the previous picture showing through.
 
 ## UI Consistency
 

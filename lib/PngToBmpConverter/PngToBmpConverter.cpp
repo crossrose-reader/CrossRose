@@ -18,7 +18,6 @@
 // ============================================================================
 // IMAGE PROCESSING OPTIONS - Same as JpegToBmpConverter for consistency
 // ============================================================================
-constexpr bool USE_8BIT_OUTPUT = false;
 constexpr bool USE_ATKINSON = true;
 constexpr bool USE_FLOYD_STEINBERG = false;
 constexpr bool USE_PRESCALE = true;
@@ -489,8 +488,10 @@ static void convertScanlineToGray(const PngDecodeContext& ctx, uint8_t* grayRow)
 }
 
 bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOut, int targetWidth, int targetHeight,
-                                                   bool oneBit, bool crop, bool adaptiveContain,
-                                                   ImageToneProfile toneProfile) {
+                                                   const Output output, bool crop, bool adaptiveContain,
+                                                   ImageToneProfile toneProfile, const int maxTargetHeight) {
+  const bool oneBit = output == Output::OneBit;
+  const bool gray8 = output == Output::Gray8;
   // Verify PNG signature
   uint8_t sig[8];
   if (pngFile.read(sig, 8) != 8 || memcmp(sig, PNG_SIGNATURE, 8) != 0) {
@@ -659,6 +660,10 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
       crop && adaptiveContain &&
       shouldContainAdaptive(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight);
   const bool cropOutput = crop && !containInsteadOfCrop;
+  if (cropOutput) {
+    targetHeight =
+        aspectFillHeight(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight, maxTargetHeight);
+  }
   const OutputGeometry geometry =
       calculateOutputGeometry(static_cast<int>(width), static_cast<int>(height), targetWidth, targetHeight, cropOutput);
   const int outWidth = geometry.outWidth;
@@ -667,7 +672,7 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
 
   // Write BMP header
   int bytesPerRow;
-  if (USE_8BIT_OUTPUT && !oneBit) {
+  if (gray8) {
     writeBmpHeader8bit(bmpOut, outWidth, outHeight);
     bytesPerRow = (outWidth + 3) / 4 * 4;
   } else if (oneBit) {
@@ -692,15 +697,15 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
   // Create ditherers (same as JpegToBmpConverter)
   std::unique_ptr<AtkinsonDitherer> atkinsonDitherer;
   std::unique_ptr<FloydSteinbergDitherer> fsDitherer;
-  std::unique_ptr<Atkinson1BitDitherer> atkinson1BitDitherer;
+  std::unique_ptr<ThumbnailDitherer> oneBitDitherer;
 
   if (oneBit) {
-    atkinson1BitDitherer = makeUniqueNoThrow<Atkinson1BitDitherer>(outWidth);
-    if (!atkinson1BitDitherer || !atkinson1BitDitherer->isValid()) {
-      LOG_ERR("PNG", "OOM: Atkinson1BitDitherer or row buffers");
+    oneBitDitherer = makeUniqueNoThrow<ThumbnailDitherer>(outWidth, 2, ThumbnailDitherer::kOneBitEdgeBoost);
+    if (!oneBitDitherer || !oneBitDitherer->isValid()) {
+      LOG_ERR("PNG", "OOM: thumbnail ditherer or row buffers");
       return false;
     }
-  } else if (!USE_8BIT_OUTPUT) {
+  } else if (!gray8) {
     if (USE_ATKINSON) {
       atkinsonDitherer = makeUniqueNoThrow<AtkinsonDitherer>(outWidth, toneProfile);
       if (!atkinsonDitherer || !atkinsonDitherer->isValid()) {
@@ -751,19 +756,19 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
       // Direct output (no scaling)
       memset(rowBuffer, 0, bytesPerRow);
 
-      if (USE_8BIT_OUTPUT && !oneBit) {
+      if (gray8) {
         for (int x = 0; x < outWidth; x++) {
           rowBuffer[x] = adjustPixel(grayRow[x]);
         }
       } else if (oneBit) {
         for (int x = 0; x < outWidth; x++) {
           const uint8_t bit =
-              atkinson1BitDitherer ? atkinson1BitDitherer->processPixel(grayRow[x], x) : quantize1bit(grayRow[x], x, y);
+              oneBitDitherer ? oneBitDitherer->processPixel(grayRow[x], x) : quantize1bit(grayRow[x], x, y);
           const int byteIndex = x / 8;
           const int bitOffset = 7 - (x % 8);
           rowBuffer[byteIndex] |= (bit << bitOffset);
         }
-        if (atkinson1BitDitherer) atkinson1BitDitherer->nextRow();
+        if (oneBitDitherer) oneBitDitherer->nextRow();
       } else {
         for (int x = 0; x < outWidth; x++) {
           const uint8_t gray = adjustPixel(grayRow[x]);
@@ -823,7 +828,7 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
       while (srcY_fp >= nextOutY_srcStart && currentOutY < outHeight) {
         memset(rowBuffer, 0, bytesPerRow);
 
-        if (USE_8BIT_OUTPUT && !oneBit) {
+        if (gray8) {
           for (int x = 0; x < outWidth; x++) {
             const uint8_t gray = (rowCount[x] > 0) ? (rowAccum[x] / rowCount[x]) : 0;
             rowBuffer[x] = adjustPixel(gray);
@@ -832,12 +837,12 @@ bool PngToBmpConverter::pngFileToBmpStreamInternal(FsFile& pngFile, Print& bmpOu
           for (int x = 0; x < outWidth; x++) {
             const uint8_t gray = (rowCount[x] > 0) ? (rowAccum[x] / rowCount[x]) : 0;
             const uint8_t bit =
-                atkinson1BitDitherer ? atkinson1BitDitherer->processPixel(gray, x) : quantize1bit(gray, x, currentOutY);
+                oneBitDitherer ? oneBitDitherer->processPixel(gray, x) : quantize1bit(gray, x, currentOutY);
             const int byteIndex = x / 8;
             const int bitOffset = 7 - (x % 8);
             rowBuffer[byteIndex] |= (bit << bitOffset);
           }
-          if (atkinson1BitDitherer) atkinson1BitDitherer->nextRow();
+          if (oneBitDitherer) oneBitDitherer->nextRow();
         } else {
           for (int x = 0; x < outWidth; x++) {
             const uint8_t gray = adjustPixel((rowCount[x] > 0) ? (rowAccum[x] / rowCount[x]) : 0);
@@ -893,10 +898,19 @@ bool PngToBmpConverter::pngFileToBmpStream(FsFile& pngFile, Print& bmpOut, bool 
   // Use runtime display dimensions (swapped for portrait cover sizing)
   const int targetWidth = display.getDisplayHeight();
   const int targetHeight = display.getDisplayWidth();
-  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, false, crop, false, toneProfile);
+  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::TwoBit, crop, false,
+                                    toneProfile);
 }
 
 bool PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(FsFile& pngFile, Print& bmpOut, int targetMaxWidth,
                                                        int targetMaxHeight, bool adaptiveContain) {
-  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetMaxWidth, targetMaxHeight, true, true, adaptiveContain);
+  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetMaxWidth, targetMaxHeight, Output::OneBit, true,
+                                    adaptiveContain);
+}
+
+bool PngToBmpConverter::pngFileToGray8BmpStreamWithSize(FsFile& pngFile, Print& bmpOut, int targetWidth,
+                                                        int targetHeight, const int maxTargetHeight,
+                                                        const bool adaptiveContain) {
+  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, adaptiveContain,
+                                    ImageToneProfile::Legacy, maxTargetHeight);
 }

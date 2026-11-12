@@ -99,6 +99,9 @@ class LibraryActivity final : public Activity {
   StrId scanFailureText = StrId::STR_LIBRARY_SCAN_FAILED;
   bool filterFailed = false;
   bool pendingCacheDeletedFeedback = false;
+  // Set for the rest of the visit once the grid's four-tone covers could not
+  // be shown (out of PSRAM, or the pass could not start).
+  bool fourToneUnavailable = false;
   unsigned long cacheDeletedFeedbackShowTime = 0;
   std::string query;
   // Searches and filters keep one bit per indexed book plus a running count per

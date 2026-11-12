@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "../GfxRenderer/ImageToneProfile.h"
+#include "../GfxRenderer/ThumbnailFormat.h"
 #include "Epub/BookMetadataCache.h"
 #include "Epub/css/CssParser.h"
 #include "Epub/image/PxcV2.h"
@@ -189,6 +190,36 @@ class Epub {
   // thumbnail height.
   // Returns false on missing cache/cover, unsupported image format, or conversion failure.
   bool generateThumbBmp(int width, int height, const GfxRenderer* renderer = nullptr, int readerFontId = 0) const;
+  // Writes the cover as an undithered 8-bit grayscale BMP `width` wide at
+  // getThumbSourceBmpPath(width, height). It is cropped to fill width x height,
+  // except that a narrower cover keeps its own aspect up to maxHeight, so
+  // crops narrower than width:height can be taken from it too. Thumbnails for
+  // a panel are then derived from it (see ThumbnailDeriver.h), which decodes
+  // the cover once however many sizes and formats are needed. The file is
+  // always written afresh; the caller removes it when it is done. Returns
+  // false for covers without coverHasGraySource() and for the failures
+  // generateThumbBmp() reports.
+  bool generateThumbSourceBmp(int width, int height, int maxHeight, const GfxRenderer* renderer = nullptr,
+                              int readerFontId = 0) const;
+  std::string getThumbSourceBmpPath(int width, int height) const;
+  // True when the cover is a JPEG or PNG, which generateThumbSourceBmp() can
+  // decode to 8 bits; a GIF cover only has one-bit thumbnails. Needs load().
+  bool coverHasGraySource() const;
+  // The four-tone variant (ThumbnailFormat.h) of the thumbnail at
+  // getThumbBmpPath(width, height) or, with adaptiveContain,
+  // getAdaptiveThumbBmpPath(width, height).
+  std::string getFourToneThumbBmpPath(int width, int height, bool adaptiveContain = false) const;
+  // Writes that four-tone thumbnail, framed exactly like its one-bit
+  // thumbnail, and the one-bit thumbnail too when it is missing, decoding the
+  // cover once. A GIF cover has no gray levels, so its four-tone thumbnail is
+  // a copy of the one-bit one; it exists all the same, and the cover is not
+  // decoded on every visit. Returns true when the four-tone thumbnail exists.
+  // Needs load().
+  bool generateFourToneThumbBmp(int width, int height, bool adaptiveContain, const GfxRenderer* renderer = nullptr,
+                                int readerFontId = 0) const;
+  // The same without load(), like generateThumbBmpFromSource().
+  bool generateFourToneThumbBmpFromSource(int width, int height, const GfxRenderer* renderer = nullptr,
+                                          int readerFontId = 0);
   // Generate a Home thumbnail from the EPUB cover without building reader pages or indexes.
   bool generateThumbBmpFromSource(int height, const GfxRenderer* renderer = nullptr, int readerFontId = 0);
   bool generateThumbBmpFromSource(int width, int height, const GfxRenderer* renderer = nullptr, int readerFontId = 0);
@@ -251,6 +282,11 @@ class Epub {
  private:
   std::string getCachedCoverImagePath(const std::string& coverImageHref) const;
   bool ensureCachedCoverImage(const std::string& coverImageHref, std::string& outPath) const;
+  // format is OneBit or Gray8; the cover converters write no other thumbnail
+  // format. sourceMaxHeight applies to Gray8 (see generateThumbSourceBmp()).
   bool generateThumbBmpInternal(int width, int height, bool adaptiveContain, const GfxRenderer* renderer,
-                                int readerFontId, const std::string* coverHrefOverride = nullptr) const;
+                                int readerFontId, const std::string* coverHrefOverride = nullptr,
+                                ThumbnailFormat format = ThumbnailFormat::OneBit, int sourceMaxHeight = 0) const;
+  bool generateFourToneThumbBmpInternal(int width, int height, bool adaptiveContain, const GfxRenderer* renderer,
+                                        int readerFontId, const std::string& coverImageHref) const;
 };

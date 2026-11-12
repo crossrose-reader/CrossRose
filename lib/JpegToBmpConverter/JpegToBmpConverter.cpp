@@ -17,7 +17,6 @@
 // ============================================================================
 // IMAGE PROCESSING OPTIONS - Toggle these to test different configurations
 // ============================================================================
-constexpr bool USE_8BIT_OUTPUT = false;  // true: 8-bit grayscale (no quantization), false: 2-bit (4 levels)
 // Dithering method selection (only one should be true, or all false for simple quantization):
 constexpr bool USE_ATKINSON = true;          // Atkinson dithering (cleaner than F-S, less error diffusion)
 constexpr bool USE_FLOYD_STEINBERG = false;  // Floyd-Steinberg error diffusion (can cause "worm" artifacts)
@@ -208,6 +207,7 @@ struct BmpConvertCtx {
   int outWidth;
   int outHeight;
   bool oneBit;
+  bool gray8;
   int bytesPerRow;
   bool needsScaling;
   uint32_t scaleX_fp;  // source pixels per output pixel, 16.16 fixed-point
@@ -236,7 +236,7 @@ struct BmpConvertCtx {
 
   std::unique_ptr<AtkinsonDitherer> atkinsonDitherer;
   std::unique_ptr<FloydSteinbergDitherer> fsDitherer;
-  std::unique_ptr<Atkinson1BitDitherer> atkinson1BitDitherer;
+  std::unique_ptr<ThumbnailDitherer> oneBitDitherer;
 
   bool error;
 };
@@ -331,17 +331,17 @@ static bool shouldContainAdaptive(const int srcWidth, const int srcHeight, const
 static void writeOutputRow(BmpConvertCtx* ctx, const uint8_t* srcRow, int outY) {
   memset(ctx->bmpRow, 0, ctx->bytesPerRow);
 
-  if (USE_8BIT_OUTPUT && !ctx->oneBit) {
+  if (ctx->gray8) {
     for (int x = 0; x < ctx->outWidth; x++) {
       ctx->bmpRow[x] = adjustPixel(srcRow[x]);
     }
   } else if (ctx->oneBit) {
     for (int x = 0; x < ctx->outWidth; x++) {
-      const uint8_t bit = ctx->atkinson1BitDitherer ? ctx->atkinson1BitDitherer->processPixel(srcRow[x], x)
-                                                    : quantize1bit(srcRow[x], x, outY);
+      const uint8_t bit =
+          ctx->oneBitDitherer ? ctx->oneBitDitherer->processPixel(srcRow[x], x) : quantize1bit(srcRow[x], x, outY);
       ctx->bmpRow[x / 8] |= (bit << (7 - (x % 8)));
     }
-    if (ctx->atkinson1BitDitherer) ctx->atkinson1BitDitherer->nextRow();
+    if (ctx->oneBitDitherer) ctx->oneBitDitherer->nextRow();
   } else {
     for (int x = 0; x < ctx->outWidth; x++) {
       const uint8_t gray = adjustPixel(srcRow[x]);
@@ -439,7 +439,7 @@ static void finishSmoothUpscale(BmpConvertCtx* ctx) {
 static void flushScaledRow(BmpConvertCtx* ctx) {
   memset(ctx->bmpRow, 0, ctx->bytesPerRow);
 
-  if (USE_8BIT_OUTPUT && !ctx->oneBit) {
+  if (ctx->gray8) {
     for (int x = 0; x < ctx->outWidth; x++) {
       const uint8_t gray = (ctx->rowCount[x] > 0) ? (ctx->rowAccum[x] / ctx->rowCount[x]) : 0;
       ctx->bmpRow[x] = adjustPixel(gray);
@@ -447,11 +447,11 @@ static void flushScaledRow(BmpConvertCtx* ctx) {
   } else if (ctx->oneBit) {
     for (int x = 0; x < ctx->outWidth; x++) {
       const uint8_t gray = (ctx->rowCount[x] > 0) ? (ctx->rowAccum[x] / ctx->rowCount[x]) : 0;
-      const uint8_t bit = ctx->atkinson1BitDitherer ? ctx->atkinson1BitDitherer->processPixel(gray, x)
-                                                    : quantize1bit(gray, x, ctx->currentOutY);
+      const uint8_t bit =
+          ctx->oneBitDitherer ? ctx->oneBitDitherer->processPixel(gray, x) : quantize1bit(gray, x, ctx->currentOutY);
       ctx->bmpRow[x / 8] |= (bit << (7 - (x % 8)));
     }
-    if (ctx->atkinson1BitDitherer) ctx->atkinson1BitDitherer->nextRow();
+    if (ctx->oneBitDitherer) ctx->oneBitDitherer->nextRow();
   } else {
     for (int x = 0; x < ctx->outWidth; x++) {
       const uint8_t gray = adjustPixel((ctx->rowCount[x] > 0) ? (ctx->rowAccum[x] / ctx->rowCount[x]) : 0);
@@ -594,8 +594,10 @@ static bool isProgressiveJpeg(FsFile& file) {
 
 // Internal implementation with configurable target size and bit depth
 bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight,
-                                                     bool oneBit, bool crop, bool adaptiveContain,
-                                                     ImageToneProfile toneProfile) {
+                                                     const Output output, bool crop, bool adaptiveContain,
+                                                     ImageToneProfile toneProfile, const int maxTargetHeight) {
+  const bool oneBit = output == Output::OneBit;
+  const bool gray8 = output == Output::Gray8;
   if (ESP.getFreeHeap() < MIN_FREE_HEAP) {
     LOG_ERR("JPG", "Not enough heap for JPEG decoder (%u free, need %u)", ESP.getFreeHeap(), MIN_FREE_HEAP);
     return false;
@@ -642,6 +644,9 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
   const bool containInsteadOfCrop =
       crop && adaptiveContain && shouldContainAdaptive(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight);
   const bool cropOutput = crop && !containInsteadOfCrop;
+  if (cropOutput) {
+    targetHeight = aspectFillHeight(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight, maxTargetHeight);
+  }
   const OutputGeometry geometry =
       calculateOutputGeometry(effectiveSrcW, effectiveSrcH, targetWidth, targetHeight, cropOutput);
   const int outWidth = geometry.outWidth;
@@ -653,7 +658,7 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
 
   // Write BMP header with output dimensions
   int bytesPerRow;
-  if (USE_8BIT_OUTPUT && !oneBit) {
+  if (gray8) {
     writeBmpHeader8bit(bmpOut, outWidth, outHeight);
     bytesPerRow = (outWidth + 3) / 4 * 4;
   } else if (oneBit) {
@@ -671,6 +676,7 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
   ctx.outWidth = outWidth;
   ctx.outHeight = outHeight;
   ctx.oneBit = oneBit;
+  ctx.gray8 = gray8;
   ctx.bytesPerRow = bytesPerRow;
   ctx.needsScaling = needsScaling;
   ctx.scaleX_fp = geometry.scaleX_fp;
@@ -736,12 +742,12 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
   }
 
   if (oneBit) {
-    ctx.atkinson1BitDitherer = makeUniqueNoThrow<Atkinson1BitDitherer>(outWidth);
-    if (!ctx.atkinson1BitDitherer || !ctx.atkinson1BitDitherer->isValid()) {
-      LOG_ERR("JPG", "OOM: Atkinson1BitDitherer");
+    ctx.oneBitDitherer = makeUniqueNoThrow<ThumbnailDitherer>(outWidth, 2, ThumbnailDitherer::kOneBitEdgeBoost);
+    if (!ctx.oneBitDitherer || !ctx.oneBitDitherer->isValid()) {
+      LOG_ERR("JPG", "OOM: thumbnail ditherer");
       return false;
     }
-  } else if (!USE_8BIT_OUTPUT) {
+  } else if (!gray8) {
     if (USE_ATKINSON) {
       ctx.atkinsonDitherer = makeUniqueNoThrow<AtkinsonDitherer>(outWidth, toneProfile);
       if (!ctx.atkinsonDitherer || !ctx.atkinsonDitherer->isValid()) {
@@ -789,11 +795,20 @@ bool JpegToBmpConverter::jpegFileToBmpStream(FsFile& jpegFile, Print& bmpOut, bo
   // Use runtime display dimensions (swapped for portrait cover sizing)
   const int targetWidth = display.getDisplayHeight();
   const int targetHeight = display.getDisplayWidth();
-  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, false, crop, false, toneProfile);
+  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::TwoBit, crop, false,
+                                     toneProfile);
 }
 
 // Convert to 1-bit BMP (black and white only, no grays) for fast home screen rendering
 bool JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetMaxWidth,
                                                          int targetMaxHeight, bool adaptiveContain) {
-  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetMaxWidth, targetMaxHeight, true, true, adaptiveContain);
+  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetMaxWidth, targetMaxHeight, Output::OneBit, true,
+                                     adaptiveContain);
+}
+
+bool JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth,
+                                                          int targetHeight, const int maxTargetHeight,
+                                                          const bool adaptiveContain) {
+  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, adaptiveContain,
+                                     ImageToneProfile::Legacy, maxTargetHeight);
 }

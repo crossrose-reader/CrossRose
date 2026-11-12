@@ -20,7 +20,7 @@ TEST(AbsoluteGrayscale, DitherersReportScratchAllocationFailure) {
   EXPECT_FALSE(failedAtkinson.isValid());
 
   rowAllocationToFail = 0;
-  Atkinson1BitDitherer failedOneBit(8);
+  ThumbnailDitherer failedOneBit(8, 2);
   rowAllocationToFail = -1;
   EXPECT_FALSE(failedOneBit.isValid());
 
@@ -30,11 +30,11 @@ TEST(AbsoluteGrayscale, DitherersReportScratchAllocationFailure) {
   EXPECT_FALSE(failedFloyd.isValid());
 
   EXPECT_FALSE(AtkinsonDitherer(0).isValid());
-  EXPECT_FALSE(Atkinson1BitDitherer(-1).isValid());
+  EXPECT_FALSE(ThumbnailDitherer(-1, 2).isValid());
   EXPECT_FALSE(FloydSteinbergDitherer(0).isValid());
 
   AtkinsonDitherer atkinson(8);
-  Atkinson1BitDitherer oneBit(8);
+  ThumbnailDitherer oneBit(8, 2);
   FloydSteinbergDitherer floyd(8);
   EXPECT_TRUE(atkinson.isValid());
   EXPECT_TRUE(oneBit.isValid());
