@@ -1023,6 +1023,15 @@ same way but the `_g4` ones are left for the next visit. XTC books use the
 same suffixes on their unversioned `thumb_<W>x<H>.bmp` names; like GIF
 covers, their side thumbnails are derived from the one-bit centre thumbnail.
 
+Every other Home theme and the Library grid also get a `_g4` thumbnail per
+EPUB on four-tone builds, next to the one-bit thumbnail they draw and at the
+same size, adaptive (`_fit_v3_g4.bmp`) ones included. The cover is decoded
+once to a `_g8` source framed like the one-bit thumbnail (cropped to fill, or
+contained for adaptive ones), both formats are derived from it at that size,
+and the source is deleted. A GIF cover's `_g4` thumbnail is a 2 bpp copy of
+its one-bit thumbnail, with no grays, so that every EPUB thumbnail has one
+and Home does not decode the cover again on every visit. XTC books get none.
+
 ## EPUB decoded-image revision 2 (2.0.0)
 
 Generated covers and thumbnails end in `_v2.bmp` (adaptive thumbnails use

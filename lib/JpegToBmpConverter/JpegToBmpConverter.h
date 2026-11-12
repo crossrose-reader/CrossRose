@@ -30,6 +30,7 @@ class JpegToBmpConverter {
   // With maxTargetHeight above targetHeight, a cover narrower than the target
   // keeps its own aspect up to that height instead of losing its top and
   // bottom, so narrower crops can still be taken from the result.
+  // adaptiveContain frames it like jpegFileTo1BitBmpStreamWithSize() does.
   static bool jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth, int targetHeight,
-                                               int maxTargetHeight = 0);
+                                               int maxTargetHeight = 0, bool adaptiveContain = false);
 };

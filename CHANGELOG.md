@@ -8,7 +8,7 @@
 - Set how long to touch and hold a word before word selection opens (400–1000 ms, in 100 ms steps) in Settings > Reader > Hold to Select Delay on touchscreen devices. The same delay applies inside definitions. The web settings page shows the value in ms.
 - Two thicker reader progress bars: Progress Bar Thickness for the top and bottom status bars now offers Extra Thick and Thickest after Thin, Medium and Thick, on the device and in the web settings page.
 - Turn Off and Restart, from the new Power entry at the end of the Home menu, the power icon at the top left of the panel you swipe down from the top (the frontlight panel on Picco and X4 Pro, the reader-details panel on Sticky), or any button shortcut or Quick Actions slot. Turn Off keeps the reader off until you press and hold Power, Restart reboots it, and both save your place and reopen the book you were reading.
-- On the Boox Picco, Carousel's Home covers are shown in four tones (white, two grays and black) instead of black and white. When the covers change, their gray parts show black for a moment before they lighten: the Picco's screen can only lighten black to gray. Dark Mode keeps black-and-white covers.
+- On the Boox Picco, Home covers in every theme (Classic, Lyra, Lyra Extended, Lyra Carousel, RoundedRaff, Minimal, Dashboard and Cover Grid) and the covers in the Library's grid view are shown in four tones (white, two grays and black) instead of black and white. When the covers change, their gray parts show black for a moment before they lighten: the Picco's screen can only lighten black to gray. Each book's four-tone covers are made the first time it is shown. Dark Mode keeps black-and-white covers.
 
 ### Changed
 

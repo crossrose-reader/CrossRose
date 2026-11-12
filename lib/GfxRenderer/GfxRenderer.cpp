@@ -1548,6 +1548,10 @@ void GfxRenderer::fillRectImpl(const int x, const int y, const int width, const 
     ly1 = std::min(ly1, textClipBottom_);
   }
   if (lx0 >= lx1 || ly0 >= ly1) return;
+  // Black needs nothing: a captured gray pixel that ends up black stays black.
+  if constexpr (C != Color::Black) {
+    if (grayCapture_.active) eraseCapturedGrayArtwork(lx0, ly0, lx1 - lx0, ly1 - ly0);
+  }
 
   // Rotate the two opposing logical corners into physical-framebuffer space.
   // The bounding rect in physical space is the rect we need to fill — rotation
@@ -1712,11 +1716,19 @@ void GfxRenderer::maskRoundedRectOutsideCorners(const int x, const int y, const 
 
   const int rr = radius - 1;
   const int rr2 = rr * rr;
+  // The corners are background now, not part of a captured picture.
+  const bool unmark = grayCapture_.active;
   for (int dy = 0; dy < radius; dy++) {
     for (int dx = 0; dx < radius; dx++) {
       const int tx = rr - dx;
       const int ty = rr - dy;
       if (tx * tx + ty * ty > rr2) {
+        if (unmark) {
+          eraseCapturedGrayArtwork(x + dx, y + dy, 1, 1);
+          eraseCapturedGrayArtwork(x + width - 1 - dx, y + dy, 1, 1);
+          eraseCapturedGrayArtwork(x + dx, y + height - 1 - dy, 1, 1);
+          eraseCapturedGrayArtwork(x + width - 1 - dx, y + height - 1 - dy, 1, 1);
+        }
         if (color == Color::White || color == Color::Black) {
           bool state = color == Color::Black;
           drawPixel(x + dx, y + dy, state);                           // top-left
@@ -2075,6 +2087,8 @@ bool GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
   }
   auto* outputRow = bitmapScratchOutputRow_;
   auto* rowBytes = bitmapScratchRowBytes_;
+  // Gray levels of a picture drawn in BW mode go to the capture planes.
+  const bool capture = grayCapture_.active && renderMode == BW && !monochromeMask;
 
   for (int bmpY = 0; bmpY < (bitmap.getHeight() - cropPixY); bmpY++) {
     // The BMP's (0, 0) is the bottom-left corner (if the height is positive, top-left if negative).
@@ -2116,6 +2130,8 @@ bool GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
 
       if (monochromeMask) {
         if (val < 3) drawPixel(screenX, screenY);
+      } else if (capture) {
+        captureGrayArtworkPixel(screenX, screenY, val);
       } else if (renderMode == BW && val < 3) {
         drawPixel(screenX, screenY);
       } else if (renderMode == GRAYSCALE_LSB || renderMode == GRAYSCALE_MSB) {
@@ -2199,6 +2215,8 @@ bool GfxRenderer::drawBitmap1Bit(const Bitmap& bitmap, const int x, const int y,
       isScaled ? static_cast<int>(std::floor((bitmap.getWidth() - 1) * scale)) + 1 : bitmap.getWidth();
   const int renderedHeight =
       isScaled ? static_cast<int>(std::floor((bitmap.getHeight() - 1) * scale)) + 1 : bitmap.getHeight();
+  // A black-and-white picture replaces any captured one beneath it.
+  if (grayCapture_.active && renderMode == BW) eraseCapturedGrayArtwork(x, y, renderedWidth, renderedHeight);
   preserveImagePolarity(x, y, renderedWidth, renderedHeight);
   return true;
 }
@@ -2715,7 +2733,8 @@ size_t GfxRenderer::getRegionByteSize(int lx, int ly, int lw, int lh) const {
   return static_cast<size_t>(bytesPerRow) * static_cast<size_t>(rowCount);
 }
 
-bool GfxRenderer::copyRegionToBuffer(int lx, int ly, int lw, int lh, uint8_t* buf, size_t bufSize) const {
+bool GfxRenderer::copyPlaneRegion(uint8_t* plane, int lx, int ly, int lw, int lh, uint8_t* toBuf,
+                                  const uint8_t* fromBuf, size_t bufSize) const {
   int x0, y0, x1, y1;
   if (!logicalRectToPhysicalBounds(orientation, lx, ly, lw, lh, panelWidth, panelHeight, &x0, &y0, &x1, &y1)) {
     return false;
@@ -2725,30 +2744,65 @@ bool GfxRenderer::copyRegionToBuffer(int lx, int ly, int lw, int lh, uint8_t* bu
   const int bytesPerRow = byteX1 - byteX0 + 1;
   const int rowCount = y1 - y0 + 1;
   const size_t needed = static_cast<size_t>(bytesPerRow) * static_cast<size_t>(rowCount);
-  if (bufSize < needed || !frameBuffer || !buf) return false;
+  if (bufSize < needed || !plane || (!toBuf && !fromBuf)) return false;
   for (int row = 0; row < rowCount; row++) {
-    const uint8_t* src = frameBuffer + (y0 + row) * panelWidthBytes + byteX0;
-    memcpy(buf + row * bytesPerRow, src, bytesPerRow);
+    uint8_t* line = plane + (y0 + row) * panelWidthBytes + byteX0;
+    if (toBuf) {
+      memcpy(toBuf + row * bytesPerRow, line, bytesPerRow);
+    } else {
+      memcpy(line, fromBuf + row * bytesPerRow, bytesPerRow);
+    }
   }
   return true;
 }
 
+bool GfxRenderer::copyRegionToBuffer(int lx, int ly, int lw, int lh, uint8_t* buf, size_t bufSize) const {
+  return copyPlaneRegion(frameBuffer, lx, ly, lw, lh, buf, nullptr, bufSize);
+}
+
 bool GfxRenderer::copyBufferToRegion(int lx, int ly, int lw, int lh, const uint8_t* buf, size_t bufSize) const {
+  return copyPlaneRegion(frameBuffer, lx, ly, lw, lh, nullptr, buf, bufSize);
+}
+
+bool GfxRenderer::copyGrayArtworkRegionToBuffer(int lx, int ly, int lw, int lh, uint8_t* buf, size_t bufSize) const {
+  const size_t half = getRegionByteSize(lx, ly, lw, lh);
+  if (!grayCapture_.active || half == 0 || bufSize < half * 2) return false;
+  return copyPlaneRegion(grayCapture_.lsb.get(), lx, ly, lw, lh, buf, nullptr, half) &&
+         copyPlaneRegion(grayCapture_.msb.get(), lx, ly, lw, lh, buf + half, nullptr, half);
+}
+
+bool GfxRenderer::copyBufferToGrayArtworkRegion(int lx, int ly, int lw, int lh, const uint8_t* buf,
+                                                size_t bufSize) const {
+  const size_t half = getRegionByteSize(lx, ly, lw, lh);
+  if (!grayCapture_.active || half == 0 || bufSize < half * 2) return false;
+  return copyPlaneRegion(grayCapture_.lsb.get(), lx, ly, lw, lh, nullptr, buf, half) &&
+         copyPlaneRegion(grayCapture_.msb.get(), lx, ly, lw, lh, nullptr, buf + half, half);
+}
+
+void GfxRenderer::eraseCapturedGrayArtwork(const int x, const int y, const int width, const int height) const {
+  if (!grayCapture_.active) return;
   int x0, y0, x1, y1;
-  if (!logicalRectToPhysicalBounds(orientation, lx, ly, lw, lh, panelWidth, panelHeight, &x0, &y0, &x1, &y1)) {
-    return false;
+  if (!logicalRectToPhysicalBounds(orientation, x, y, width, height, panelWidth, panelHeight, &x0, &y0, &x1, &y1)) {
+    return;
   }
-  const int byteX0 = x0 / 8;
-  const int byteX1 = x1 / 8;
-  const int bytesPerRow = byteX1 - byteX0 + 1;
-  const int rowCount = y1 - y0 + 1;
-  const size_t needed = static_cast<size_t>(bytesPerRow) * static_cast<size_t>(rowCount);
-  if (bufSize < needed || !frameBuffer || !buf) return false;
-  for (int row = 0; row < rowCount; row++) {
-    uint8_t* dst = frameBuffer + (y0 + row) * panelWidthBytes + byteX0;
-    memcpy(dst, buf + row * bytesPerRow, bytesPerRow);
+  // Pixels are MSB first: keep the bits left of x0 and right of x1.
+  const int byte0 = x0 / 8;
+  const int byte1 = x1 / 8;
+  const auto firstBits = static_cast<uint8_t>(0xFF >> (x0 % 8));
+  const auto lastBits = static_cast<uint8_t>(0xFF << (7 - (x1 % 8)));
+  uint8_t* planes[] = {grayCapture_.lsb.get(), grayCapture_.msb.get()};
+  for (uint8_t* plane : planes) {
+    for (int row = y0; row <= y1; ++row) {
+      uint8_t* line = plane + row * panelWidthBytes;
+      if (byte0 == byte1) {
+        line[byte0] &= static_cast<uint8_t>(~(firstBits & lastBits));
+        continue;
+      }
+      line[byte0] &= static_cast<uint8_t>(~firstBits);
+      if (byte1 > byte0 + 1) memset(line + byte0 + 1, 0, byte1 - byte0 - 1);
+      line[byte1] &= static_cast<uint8_t>(~lastBits);
+    }
   }
-  return true;
 }
 
 int GfxRenderer::getSpaceWidth(const int fontId, const EpdFontFamily::Style style) const {
@@ -3338,8 +3392,79 @@ bool GfxRenderer::displayGrayArtwork(const uint8_t* lsb, const uint8_t* msb, con
   copyGrayscalePlanes(lsb, msb);
   displayGrayBuffer();
   cleanupGrayscaleWithFrameBuffer();
+  grayArtwork_.planesHash = grayArtworkPlanesHash(lsb, msb, frameBufferSize);
   grayArtwork_.onPanel = true;
   return true;
+}
+
+bool GfxRenderer::beginGrayArtworkCapture() {
+  grayCapture_.active = false;
+  if (!frameBuffer || _stripActive || renderMode != BW || !supportsGrayArtwork()) return false;
+  // The capture planes are written while the screen is drawn and the two
+  // displayGrayArtwork() copies are needed to show it, so all four are
+  // allocated before anything is drawn gray-as-white. Framebuffer-sized, far
+  // too large for the stack, and kept for reuse like the copies.
+  if (!grayCapture_.lsb) grayCapture_.lsb = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayCapture_.msb) grayCapture_.msb = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayArtwork_.base) grayArtwork_.base = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayArtwork_.mask) grayArtwork_.mask = makePsramByteBufferNoThrow(frameBufferSize);
+  if (!grayCapture_.lsb || !grayCapture_.msb || !grayArtwork_.base || !grayArtwork_.mask) {
+    LOG_ERR("GFX", "No PSRAM for four-tone capture (%u bytes x4)", static_cast<unsigned>(frameBufferSize));
+    return false;
+  }
+  memset(grayCapture_.lsb.get(), 0, frameBufferSize);
+  memset(grayCapture_.msb.get(), 0, frameBufferSize);
+  grayCapture_.active = true;
+  return true;
+}
+
+void GfxRenderer::captureGrayArtworkPixel(const int x, const int y, const uint8_t level) const {
+  if (textClipActive_ && (x < textClipLeft_ || x >= textClipRight_ || y < textClipTop_ || y >= textClipBottom_)) {
+    return;
+  }
+  int phyX = 0;
+  int phyY = 0;
+  rotateCoordinates(orientation, x, y, &phyX, &phyY, panelWidth, panelHeight);
+  if (phyX < 0 || phyX >= panelWidth || phyY < 0 || phyY >= panelHeight) return;
+  const uint32_t byteIndex = static_cast<uint32_t>(phyY) * panelWidthBytes + (phyX / 8);
+  const auto bit = static_cast<uint8_t>(1 << (7 - (phyX % 8)));
+  uint8_t& lsb = grayCapture_.lsb[byteIndex];
+  uint8_t& msb = grayCapture_.msb[byteIndex];
+  // Levels: 0 black, 1 dark gray, 2 light gray, 3 white. White pixels of a
+  // picture are transparent, as in BW drawing, but still unmark.
+  if (level == 1 || level == 2) {
+    frameBuffer[byteIndex] |= bit;
+    msb |= bit;
+    lsb = level == 1 ? static_cast<uint8_t>(lsb | bit) : static_cast<uint8_t>(lsb & ~bit);
+    return;
+  }
+  if (level == 0) frameBuffer[byteIndex] &= static_cast<uint8_t>(~bit);
+  lsb &= static_cast<uint8_t>(~bit);
+  msb &= static_cast<uint8_t>(~bit);
+}
+
+bool GfxRenderer::displayCapturedGrayArtwork(const HalDisplay::RefreshMode mode) {
+  if (!grayCapture_.active) {
+    displayBuffer(mode);
+    return true;
+  }
+  grayCapture_.active = false;
+  uint8_t* lsb = grayCapture_.lsb.get();
+  uint8_t* msb = grayCapture_.msb.get();
+  if (!resolveCapturedGrayArtwork(frameBuffer, lsb, msb, frameBufferSize)) {
+    displayBuffer(mode);
+    return true;
+  }
+  encodeGrayArtworkPlanes(lsb, msb);
+  // The same picture is already on the panel: its gray pixels are black in
+  // both base frames, so a fast refresh leaves them, and their gray ink, alone.
+  if (mode == HalDisplay::FAST_REFRESH && grayArtwork_.onPanel &&
+      grayArtwork_.planesHash == grayArtworkPlanesHash(lsb, msb, frameBufferSize)) {
+    keepGrayArtworkForNextRefresh();
+    displayBuffer(mode);
+    return true;
+  }
+  return displayGrayArtwork(lsb, msb, mode);
 }
 
 void GfxRenderer::preconditionGrayscale() const { display.preconditionGrayscale(); }

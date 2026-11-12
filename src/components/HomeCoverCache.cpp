@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include "FourToneCovers.h"
 #include "UITheme.h"
 
 namespace fui = freeink::ui;
@@ -21,6 +22,13 @@ void HomeCoverCache::begin() {
     LOG_ERR("HOME", "PSRAM cover cache unavailable (%u bytes); rendering uncached", unsigned(coverCacheCapacity));
 #endif
     coverCacheCapacity = 0;
+    return;
+  }
+  if (FourToneCovers::enabled()) {
+    // Without it covers are still cached, just not while capturing.
+    planeCache = makePsramByteBufferNoThrow(coverCacheCapacity * 2);
+    if (!planeCache)
+      LOG_ERR("HOME", "PSRAM four-tone cover cache unavailable (%u bytes)", unsigned(coverCacheCapacity * 2));
   }
 }
 
@@ -45,14 +53,20 @@ void HomeCoverCache::prepare() {
 bool HomeCoverCache::paint(fui::Rect rect, size_t index, const std::string& path) {
   if (index >= cachedCovers.size()) return false;
   auto& cached = cachedCovers[index];
-  if (coverCache && cached.valid && cached.rect.x == rect.x && cached.rect.y == rect.y &&
-      cached.rect.width == rect.width && cached.rect.height == rect.height &&
-      renderer.copyBufferToRegion(rect.x, rect.y, rect.width, rect.height, &coverCache[cached.offset], cached.bytes)) {
+  // A snapshot taken in the other capture state does not match this frame:
+  // gray pixels are white in a four-tone one.
+  const bool capturing = renderer.isCapturingGrayArtwork();
+  if (coverCache && cached.valid && cached.fourTone == capturing && cached.rect.x == rect.x &&
+      cached.rect.y == rect.y && cached.rect.width == rect.width && cached.rect.height == rect.height &&
+      renderer.copyBufferToRegion(rect.x, rect.y, rect.width, rect.height, &coverCache[cached.offset], cached.bytes) &&
+      (!capturing ||
+       (planeCache && renderer.copyBufferToGrayArtworkRegion(rect.x, rect.y, rect.width, rect.height,
+                                                             &planeCache[cached.offset * 2], cached.bytes * 2)))) {
     return true;
   }
   cached.valid = false;
   bool drawn = false;
-  if (!path.empty() && Storage.openFileForRead("HOME", path, coverFile)) {
+  if (!path.empty() && FourToneCovers::openThumb(renderer, path, coverFile)) {
     if (coverBitmap.parseHeaders() == BmpReaderError::Ok && coverBitmap.rewindToData() == BmpReaderError::Ok &&
         coverBitmap.getWidth() > 0 && coverBitmap.getHeight() > 0) {
       const int width = coverBitmap.getWidth();
@@ -79,8 +93,12 @@ bool HomeCoverCache::paint(fui::Rect rect, size_t index, const std::string& path
     }
     if (needed > 0 && needed <= cached.bytes) {
       cached.rect = rect;
+      cached.fourTone = capturing;
       cached.valid = renderer.copyRegionToBuffer(rect.x, rect.y, rect.width, rect.height, &coverCache[cached.offset],
-                                                 cached.bytes);
+                                                 cached.bytes) &&
+                     (!capturing || (planeCache && renderer.copyGrayArtworkRegionToBuffer(
+                                                       rect.x, rect.y, rect.width, rect.height,
+                                                       &planeCache[cached.offset * 2], cached.bytes * 2)));
     }
   }
   return true;  // The cover slot is painted, including fallback art.

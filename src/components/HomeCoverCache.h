@@ -27,8 +27,14 @@ class HomeCoverCache {
     size_t offset = 0;
     size_t bytes = 0;
     bool valid = false;
+    // Drawn during a four-tone capture: its gray pixels are white in the
+    // snapshot and marked in planeCache, at twice `offset` (LSB then MSB).
+    bool fourTone = false;
   };
   HeapByteBuffer coverCache;
+  // The capture planes of four-tone covers, twice coverCache's size; only on
+  // builds with four-tone covers.
+  HeapByteBuffer planeCache;
   std::array<CachedCover, MAX_COVERS> cachedCovers{};
   size_t coverCacheCapacity = 0;
   size_t coverCacheUsed = 0;

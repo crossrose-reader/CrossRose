@@ -57,13 +57,33 @@ class GfxRenderer {
   RenderMode renderMode;
   mutable bool absoluteGrayPlanes = false;
   struct GrayArtwork {
-    HeapByteBuffer base;  // B/W frame the controller holds under the gray ink
-    HeapByteBuffer mask;  // 1 bits are gray on the panel (marked in either plane)
+    HeapByteBuffer base;      // B/W frame the controller holds under the gray ink
+    HeapByteBuffer mask;      // 1 bits are gray on the panel (marked in either plane)
+    uint32_t planesHash = 0;  // of the encoded planes on the panel
     bool onPanel = false;
     bool keepForNextRefresh = false;
   };
   // Display calls are const; this tracks the panel, not the drawing state.
   mutable GrayArtwork grayArtwork_;
+  // Four-tone artwork captured from an ordinary black-and-white draw (see
+  // beginGrayArtworkCapture()). A 1 bit marks a pixel in that plane, in the
+  // shared overlay encoding: dark gray in both planes, light gray in the MSB.
+  struct GrayArtworkCapture {
+    HeapByteBuffer lsb;
+    HeapByteBuffer msb;
+    bool active = false;
+  };
+  // Drawing calls are const, like the framebuffer writes they shadow.
+  mutable GrayArtworkCapture grayCapture_;
+  // Records one pixel of a four-tone picture at logical (x, y): gray pixels
+  // go white in the framebuffer and are marked, black and white ones unmark.
+  void captureGrayArtworkPixel(int x, int y, uint8_t level) const;
+  // Unmarks a logical rect: whatever was drawn there last is not gray.
+  void eraseCapturedGrayArtwork(int x, int y, int width, int height) const;
+  // Copies a region of `plane` (framebuffer layout) into `toBuf` or, when it
+  // is null, from `fromBuf` into the plane.
+  bool copyPlaneRegion(uint8_t* plane, int logicalX, int logicalY, int logicalW, int logicalH, uint8_t* toBuf,
+                       const uint8_t* fromBuf, size_t bufSize) const;
   // Called before every refresh. Returns true when the frame must be shown
   // through the grayscale-base path so gray pixels get driven to B/W.
   bool retireGrayArtwork(HalDisplay::RefreshMode mode) const;
@@ -452,6 +472,31 @@ class GfxRenderer {
   // alone. Any other refresh mode clears it as usual.
   void keepGrayArtworkForNextRefresh() const { grayArtwork_.keepForNextRefresh = grayArtwork_.onPanel; }
 
+  // Four-tone artwork drawn as part of an ordinary black-and-white screen, for
+  // screens that are drawn in one pass (Home themes other than Carousel, the
+  // Library grid). While a capture is active, a picture with gray levels drawn
+  // in BW mode (a four-tone cover thumbnail) records its gray pixels in two
+  // PSRAM overlay planes and leaves them white in the framebuffer. Black drawn
+  // over them later wins on its own; white fills, dithered fills and rounded
+  // corner masks unmark what they cover, and so does a one-bit picture. Other
+  // white drawn over a gray pixel (white text) leaves it gray.
+  //
+  // Returns false, capturing nothing, where supportsGrayArtwork() is false or
+  // PSRAM for the planes and the displayGrayArtwork() copies runs out; the
+  // screen then draws its black-and-white thumbnails. Starts with no marks.
+  bool beginGrayArtworkCapture();
+  // Ends a capture without showing it.
+  void endGrayArtworkCapture() const { grayCapture_.active = false; }
+  bool isCapturingGrayArtwork() const { return grayCapture_.active; }
+  // Ends the capture and shows the framebuffer. A captured pixel is gray only
+  // if it is still white; gray pixels go black in the base frame. Without any,
+  // this is displayBuffer(mode). When the same four-tone picture is already on
+  // the panel and mode is FAST, one fast refresh keeps its gray ink; otherwise
+  // displayGrayArtwork() shows it. Returns false only when that fails, having
+  // shown nothing: the framebuffer then holds the base frame, so the caller
+  // redraws without a capture.
+  bool displayCapturedGrayArtwork(HalDisplay::RefreshMode mode = HalDisplay::FAST_REFRESH);
+
   // Font helpers
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;
 
@@ -504,4 +549,11 @@ class GfxRenderer {
   bool copyRegionToBuffer(int logicalX, int logicalY, int logicalW, int logicalH, uint8_t* buf, size_t bufSize) const;
   bool copyBufferToRegion(int logicalX, int logicalY, int logicalW, int logicalH, const uint8_t* buf,
                           size_t bufSize) const;
+  // The same region of both capture planes, for a cache that restores captured
+  // artwork: `buf` holds the LSB region then the MSB region, so it needs twice
+  // getRegionByteSize(). False while no capture is active.
+  bool copyGrayArtworkRegionToBuffer(int logicalX, int logicalY, int logicalW, int logicalH, uint8_t* buf,
+                                     size_t bufSize) const;
+  bool copyBufferToGrayArtworkRegion(int logicalX, int logicalY, int logicalW, int logicalH, const uint8_t* buf,
+                                     size_t bufSize) const;
 };

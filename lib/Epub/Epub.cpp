@@ -1,6 +1,7 @@
 #include "Epub.h"
 
 #include <ArduinoJson.h>
+#include <Bitmap.h>
 #include <BufferedPrint.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
@@ -13,6 +14,7 @@
 #include <Memory.h>
 #include <MemoryBudget.h>
 #include <PngToBmpConverter.h>
+#include <ThumbnailDeriver.h>
 #include <Utf8.h>
 #include <ZipFile.h>
 #include <freertos/FreeRTOS.h>
@@ -1481,6 +1483,111 @@ bool Epub::coverHasGraySource() const {
   return FsHelpers::hasJpgExtension(href) || FsHelpers::hasPngExtension(href);
 }
 
+std::string Epub::getFourToneThumbBmpPath(int width, int height, const bool adaptiveContain) const {
+  normalizeThumbDimensions(width, height);
+  return thumbnailVariantPath(adaptiveContain ? getAdaptiveThumbBmpPathForDimensions(cachePath, width, height)
+                                              : getThumbBmpPathForDimensions(cachePath, width, height),
+                              ThumbnailFormat::FourTone);
+}
+
+bool Epub::generateFourToneThumbBmp(const int width, const int height, const bool adaptiveContain,
+                                    const GfxRenderer* renderer, const int readerFontId) const {
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
+    LOG_ERR("EBP", "Cannot generate four-tone thumb BMP, cache not loaded");
+    return false;
+  }
+  return generateFourToneThumbBmpInternal(width, height, adaptiveContain, renderer, readerFontId,
+                                          bookMetadataCache->coreMetadata.coverItemHref);
+}
+
+bool Epub::generateFourToneThumbBmpFromSource(int width, int height, const GfxRenderer* renderer,
+                                              const int readerFontId) {
+  if (Storage.exists(getFourToneThumbBmpPath(width, height, false).c_str())) return true;
+  auto metadata = makeUniqueNoThrow<BookMetadataCache::BookMetadata>();
+  if (!metadata) {
+    LOG_ERR("EBP", "Cannot allocate cover metadata");
+    return false;
+  }
+  setupCacheDir();
+  if (!parseContentOpf(*metadata, /*writeSpineEntries=*/false, /*collectCssFiles=*/false)) {
+    return false;
+  }
+  return generateFourToneThumbBmpInternal(width, height, false, renderer, readerFontId, metadata->coverItemHref);
+}
+
+namespace {
+
+// Writes `destPath` as a thumbnail of `sourcePath` at the source's own size,
+// so only the format changes (see ThumbnailDeriver.h). Goes through a
+// temporary name, since a thumbnail that exists is trusted, and replaces an
+// existing file: SdFat cannot rename over one.
+bool deriveSameSizeThumbnail(const std::string& sourcePath, const std::string& destPath, const ThumbnailFormat format) {
+  FsFile source;
+  if (!Storage.openFileForRead("EBP", sourcePath, source)) return false;
+  Bitmap bitmap(source);
+  if (bitmap.parseHeaders() != BmpReaderError::Ok) {
+    LOG_ERR("EBP", "Thumbnail source is not a readable BMP: %s", sourcePath.c_str());
+    source.close();
+    return false;
+  }
+  const ThumbnailSpec spec{bitmap.getWidth(), bitmap.getHeight(), 0, 0, format};
+
+  const std::string tmpPath = destPath + ".tmp";
+  if (Storage.exists(tmpPath.c_str())) Storage.remove(tmpPath.c_str());
+  FsFile out;
+  if (!Storage.openFileForWrite("EBP", tmpPath, out)) {
+    source.close();
+    return false;
+  }
+  bool ok = deriveThumbnailBmp(source, out, spec);
+  source.close();
+  ok = out.close() && ok;
+  if (ok && Storage.exists(destPath.c_str())) Storage.remove(destPath.c_str());
+  if (ok && !Storage.rename(tmpPath.c_str(), destPath.c_str())) {
+    LOG_ERR("EBP", "Cannot publish %s", destPath.c_str());
+    ok = false;
+  }
+  if (!ok) Storage.remove(tmpPath.c_str());
+  return ok;
+}
+
+}  // namespace
+
+bool Epub::generateFourToneThumbBmpInternal(int width, int height, const bool adaptiveContain,
+                                            const GfxRenderer* renderer, const int readerFontId,
+                                            const std::string& coverImageHref) const {
+  normalizeThumbDimensions(width, height);
+  const std::string oneBitPath = adaptiveContain ? getAdaptiveThumbBmpPathForDimensions(cachePath, width, height)
+                                                 : getThumbBmpPathForDimensions(cachePath, width, height);
+  const std::string fourTonePath = thumbnailVariantPath(oneBitPath, ThumbnailFormat::FourTone);
+  if (Storage.exists(fourTonePath.c_str())) return true;
+  if (coverImageHref.empty()) return false;
+
+  if (!FsHelpers::hasJpgExtension(coverImageHref) && !FsHelpers::hasPngExtension(coverImageHref)) {
+    // A GIF cover only has a one-bit thumbnail. Its four-tone copy shows the
+    // same picture, but having one means the cover is not decoded again.
+    return generateThumbBmpInternal(width, height, adaptiveContain, renderer, readerFontId, &coverImageHref) &&
+           deriveSameSizeThumbnail(oneBitPath, fourTonePath, ThumbnailFormat::FourTone);
+  }
+
+  // One decode to an 8-bit source framed like the one-bit thumbnail, then
+  // both formats at its size: the four-tone one and, when it is missing, the
+  // one-bit one.
+  if (!generateThumbBmpInternal(width, height, adaptiveContain, renderer, readerFontId, &coverImageHref,
+                                ThumbnailFormat::Gray8)) {
+    return false;
+  }
+  const std::string sourcePath = thumbnailVariantPath(oneBitPath, ThumbnailFormat::Gray8);
+  const bool ok = deriveSameSizeThumbnail(sourcePath, fourTonePath, ThumbnailFormat::FourTone);
+  if (!cachedBmpMatchesDimensions(oneBitPath, width, height, adaptiveContain) &&
+      !deriveSameSizeThumbnail(sourcePath, oneBitPath, ThumbnailFormat::OneBit)) {
+    LOG_ERR("EBP", "Cannot derive one-bit thumbnail %s", oneBitPath.c_str());
+  }
+  // Up to width x height bytes, and only needed while deriving.
+  Storage.remove(sourcePath.c_str());
+  return ok;
+}
+
 std::string Epub::getCachedCoverImagePath(const std::string& coverImageHref) const {
   if (FsHelpers::hasJpgExtension(coverImageHref)) {
     return getCachePath() + "/cover_src.jpg";
@@ -1582,8 +1689,8 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     bool success;
     if (gray8) {
       BufferedPrint buffered(thumbBmp, kThumbSourceWriteBlockBytes);
-      success = JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(coverJpg, buffered, THUMB_TARGET_WIDTH,
-                                                                     THUMB_TARGET_HEIGHT, sourceMaxHeight);
+      success = JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(
+          coverJpg, buffered, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight, adaptiveContain);
       success = buffered.flushBuffer() && success;
     } else {
       success = JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(coverJpg, thumbBmp, THUMB_TARGET_WIDTH,
@@ -1620,8 +1727,8 @@ bool Epub::generateThumbBmpInternal(int width, int height, const bool adaptiveCo
     bool success;
     if (gray8) {
       BufferedPrint buffered(thumbBmp, kThumbSourceWriteBlockBytes);
-      success = PngToBmpConverter::pngFileToGray8BmpStreamWithSize(coverPng, buffered, THUMB_TARGET_WIDTH,
-                                                                   THUMB_TARGET_HEIGHT, sourceMaxHeight);
+      success = PngToBmpConverter::pngFileToGray8BmpStreamWithSize(
+          coverPng, buffered, THUMB_TARGET_WIDTH, THUMB_TARGET_HEIGHT, sourceMaxHeight, adaptiveContain);
       success = buffered.flushBuffer() && success;
     } else {
       success = PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(coverPng, thumbBmp, THUMB_TARGET_WIDTH,

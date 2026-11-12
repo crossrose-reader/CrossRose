@@ -71,6 +71,12 @@ class HomeActivity final : public Activity {
   OptionPopup quickActionsPopup;
   uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
   size_t coverBufferSize = 0;      // Bytes allocated to coverBuffer
+  // A cover snapshot taken during a four-tone capture (FourToneCovers.h) has
+  // its gray pixels white; these PSRAM copies of the same region of the two
+  // capture planes hold their marks, LSB region then MSB region.
+  HeapByteBuffer coverPlanes;
+  size_t coverPlanesSize = 0;
+  bool coverBufferFourTone = false;
   // Logical rect last passed to drawRecentBookCover. The cover snapshot only
   // needs to cover this region, not the entire framebuffer, so we cache the
   // tile instead of all 48 KB. Set in render() before the call.
@@ -124,7 +130,8 @@ class HomeActivity final : public Activity {
   bool fourToneSelected = false;
   uint64_t fourToneKeyHash = 0;
   // Set for the rest of the visit once four tones could not be shown (no
-  // PSRAM for the frames, or the pass could not start).
+  // PSRAM for the frames or the capture planes, or the pass could not start),
+  // on every theme.
   bool fourToneUnavailable = false;
   bool carouselFramesInverted = false;
   bool carouselWarmupPending = false;
@@ -166,6 +173,9 @@ class HomeActivity final : public Activity {
   int chooseCarouselEvictionSlot(int centerIdx, int bookCount,
                                  std::optional<int> protectedBookIdx = std::nullopt) const;
   void renderCarouselFrameToCurrentBuffer(int bookIdx);
+  // Starts a four-tone capture for this render on themes drawn in one pass
+  // (every theme but Carousel); false when covers stay black and white.
+  bool beginFourToneCapture();
   FourToneFrames* fourToneFramesFor(int centerIdx);
   bool canShowFourToneCovers(int centerIdx);
   FourTonePicture prepareFourToneFrames(const Rect& coverRect, int centerIdx, bool selected);

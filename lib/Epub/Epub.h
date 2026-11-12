@@ -205,6 +205,21 @@ class Epub {
   // True when the cover is a JPEG or PNG, which generateThumbSourceBmp() can
   // decode to 8 bits; a GIF cover only has one-bit thumbnails. Needs load().
   bool coverHasGraySource() const;
+  // The four-tone variant (ThumbnailFormat.h) of the thumbnail at
+  // getThumbBmpPath(width, height) or, with adaptiveContain,
+  // getAdaptiveThumbBmpPath(width, height).
+  std::string getFourToneThumbBmpPath(int width, int height, bool adaptiveContain = false) const;
+  // Writes that four-tone thumbnail, framed exactly like its one-bit
+  // thumbnail, and the one-bit thumbnail too when it is missing, decoding the
+  // cover once. A GIF cover has no gray levels, so its four-tone thumbnail is
+  // a copy of the one-bit one; it exists all the same, and the cover is not
+  // decoded on every visit. Returns true when the four-tone thumbnail exists.
+  // Needs load().
+  bool generateFourToneThumbBmp(int width, int height, bool adaptiveContain, const GfxRenderer* renderer = nullptr,
+                                int readerFontId = 0) const;
+  // The same without load(), like generateThumbBmpFromSource().
+  bool generateFourToneThumbBmpFromSource(int width, int height, const GfxRenderer* renderer = nullptr,
+                                          int readerFontId = 0);
   // Generate a Home thumbnail from the EPUB cover without building reader pages or indexes.
   bool generateThumbBmpFromSource(int height, const GfxRenderer* renderer = nullptr, int readerFontId = 0);
   bool generateThumbBmpFromSource(int width, int height, const GfxRenderer* renderer = nullptr, int readerFontId = 0);
@@ -272,4 +287,6 @@ class Epub {
   bool generateThumbBmpInternal(int width, int height, bool adaptiveContain, const GfxRenderer* renderer,
                                 int readerFontId, const std::string* coverHrefOverride = nullptr,
                                 ThumbnailFormat format = ThumbnailFormat::OneBit, int sourceMaxHeight = 0) const;
+  bool generateFourToneThumbBmpInternal(int width, int height, bool adaptiveContain, const GfxRenderer* renderer,
+                                        int readerFontId, const std::string& coverImageHref) const;
 };

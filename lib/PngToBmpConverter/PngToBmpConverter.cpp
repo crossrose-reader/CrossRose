@@ -909,7 +909,8 @@ bool PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(FsFile& pngFile, Print& b
 }
 
 bool PngToBmpConverter::pngFileToGray8BmpStreamWithSize(FsFile& pngFile, Print& bmpOut, int targetWidth,
-                                                        int targetHeight, const int maxTargetHeight) {
-  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false,
+                                                        int targetHeight, const int maxTargetHeight,
+                                                        const bool adaptiveContain) {
+  return pngFileToBmpStreamInternal(pngFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, adaptiveContain,
                                     ImageToneProfile::Legacy, maxTargetHeight);
 }

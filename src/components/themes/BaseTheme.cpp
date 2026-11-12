@@ -20,6 +20,7 @@
 #include "I18n.h"
 #include "RecentBooksStore.h"
 #include "activities/reader/BookReadingStats.h"
+#include "components/FourToneCovers.h"
 #include "components/HeaderDate.h"
 #include "components/TouchActionButtons.h"
 #include "components/TouchRegistry.h"
@@ -549,7 +550,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
         UITheme::getCoverThumbPath(recentBooks[0].coverBmpPath, BaseMetrics::values.homeCoverHeight);
 
     FsFile file;
-    if (Storage.openFileForRead("HOME", coverBmpPath, file)) {
+    if (FourToneCovers::openThumb(renderer, coverBmpPath, file)) {
       Bitmap bitmap(file);
       if (bitmap.parseHeaders() == BmpReaderError::Ok) {
         hasCoverImage = true;
@@ -602,7 +603,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
       // First time: load cover from SD and render
       FsFile file;
-      if (Storage.openFileForRead("HOME", coverBmpPath, file)) {
+      if (FourToneCovers::openThumb(renderer, coverBmpPath, file)) {
         Bitmap bitmap(file);
         if (bitmap.parseHeaders() == BmpReaderError::Ok) {
           // Draw the cover image (bookWidth and bookHeight already match image aspect ratio)

@@ -23,6 +23,7 @@
 #include "activities/reader/BookStatsTracking.h"
 #include "activities/reader/GlobalReadingStats.h"
 #include "activities/reader/ReadingStatsUtils.h"
+#include "components/FourToneCovers.h"
 #include "components/TouchRegistry.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
@@ -126,7 +127,7 @@ void drawBookCover(const GfxRenderer& renderer, const Rect& coverRect, const Rec
   const std::string coverBmpPath = coverPathForRect(book, coverRect);
   if (!coverBmpPath.empty() && Storage.exists(coverBmpPath.c_str())) {
     FsFile file;
-    if (Storage.openFileForRead("HOME", coverBmpPath, file)) {
+    if (FourToneCovers::openThumb(renderer, coverBmpPath, file)) {
       Bitmap bitmap(file);
       if (bitmap.parseHeaders() == BmpReaderError::Ok) {
         const Rect bitmapRect = fittedBitmapRect(bitmap, coverRect);

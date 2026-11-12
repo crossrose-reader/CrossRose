@@ -807,7 +807,8 @@ bool JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(FsFile& jpegFile, Print
 }
 
 bool JpegToBmpConverter::jpegFileToGray8BmpStreamWithSize(FsFile& jpegFile, Print& bmpOut, int targetWidth,
-                                                          int targetHeight, const int maxTargetHeight) {
-  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, false,
+                                                          int targetHeight, const int maxTargetHeight,
+                                                          const bool adaptiveContain) {
+  return jpegFileToBmpStreamInternal(jpegFile, bmpOut, targetWidth, targetHeight, Output::Gray8, true, adaptiveContain,
                                      ImageToneProfile::Legacy, maxTargetHeight);
 }
