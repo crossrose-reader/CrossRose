@@ -53,6 +53,8 @@ class FrontlightPanelActivity final : public Activity {
   // Cleared by computePanelBottom() when the chapter line cannot fit beside
   // the controls (e.g. landscape at Large scale).
   bool showChapterLine = false;
+  // The shared popup currently shows the Turn Off / Restart chooser (not Sync).
+  bool powerMenuOpen = false;
 
   static void panelScreen(UiApp::ScreenType& screen, void* user);
   static void onBrightnessEvent(const freeink::ui::ActionEvent& event, void* user);
@@ -66,6 +68,9 @@ class FrontlightPanelActivity final : public Activity {
   void addStepSlider(UiApp::ScreenType& screen, const freeink::ui::Rect& row, uint8_t value,
                      freeink::ui::ActionId sliderAction, freeink::ui::ActionId stepAction);
   Rect homeButtonRect() const;
+  // Header power icon: the left end of the header, mirroring Home on the right.
+  Rect powerButtonRect() const;
+  void openPowerMenu();
   // Height of the drop-down, derived from the content it holds (header +
   // sliders + toggle). Same layout math as buildPanelScreen so the frame,
   // content margin, and dismiss threshold all agree.
@@ -104,6 +109,9 @@ class FrontlightPanelActivity final : public Activity {
   // it dismisses the overlay back to the current screen.
   bool handleHomeGesture() override;
   bool requiresFreshBackdrop() const override { return true; }
+  // The Power chooser is modal like the Quick Actions popups: chords, the Home
+  // key and edge gestures must not act behind it. Sync keeps its old behavior.
+  bool blocksGlobalInput() const override { return powerMenuOpen && optionPopup.isActive(); }
 #ifdef SIMULATOR
   freeink::ui::Rect simulatorQuickActionRect(int index) const;
   freeink::ui::Rect simulatorHandleRect() const { return drawerHandleRect; }
@@ -113,5 +121,10 @@ class FrontlightPanelActivity final : public Activity {
   int simulatorContentBottom = 0;
   int simulatorActionBarTop = 0;
   void simulatorActivateQuickAction(int index) { activateQuickAction(index); }
+  Rect simulatorPowerButtonRect() const { return powerButtonRect(); }
+  Rect simulatorHomeButtonRect() const { return homeButtonRect(); }
+  bool simulatorPowerMenuOpen() const { return powerMenuOpen && optionPopup.isActive(); }
+  void simulatorOpenPowerMenu() { openPowerMenu(); }
+  const char* simulatorPopupOptionLabel(const int index) const { return optionPopup.simulatorOptionLabel(index); }
 #endif
 };

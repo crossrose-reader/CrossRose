@@ -461,6 +461,8 @@ bool TxtReaderActivity::supportsQuickAction(const CrossPointSettings::SHORT_PWRB
     case CrossPointSettings::SHORT_PWRBTN::ROTATE_FLIP:
     case CrossPointSettings::SHORT_PWRBTN::PREVIOUS_PAGE:
     case CrossPointSettings::SHORT_PWRBTN::SLEEP:
+    case CrossPointSettings::SHORT_PWRBTN::TURN_OFF:
+    case CrossPointSettings::SHORT_PWRBTN::RESTART:
     case CrossPointSettings::SHORT_PWRBTN::FORCE_REFRESH:
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:
     case CrossPointSettings::SHORT_PWRBTN::CALIBRE_WIRELESS:

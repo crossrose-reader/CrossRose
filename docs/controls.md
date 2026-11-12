@@ -226,6 +226,7 @@ Available actions include:
 - **Sleep** (also available to the combo shortcuts and the Home button). On the
   Power button this appears as **Sleep/Wake**, together with **Sleep** and
   **Wake**, which do only one of the two.
+- **Turn Off**, **Restart** (see [Turn Off and Restart](#turn-off-and-restart))
 - **Next Page**, **Previous Page**
 - **Select Chapter**
 - **Toggle Bookmark**
@@ -305,6 +306,33 @@ short- or long-press Power, **Power + Up Combo**, **Up + Down Combo**, each
 side-button short or long press, and on X4 Pro, **Tap Home**, **Long-Press
 Home**, or **Double Tap Home**. Button devices can also use **Long-press Back**
 and **Long-press Menu**.
+
+## Turn Off and Restart
+
+**Turn Off** and **Restart** can go on any button shortcut: a short or long
+Power press, the **Power + Up** and **Up + Down** combos, the X4 Pro Home key
+(tap, double tap, or long press), side-button presses, front-button long
+presses, **Long-press Back** and **Long-press Menu**, and Quick Actions. Like
+every side-button, front-button, **Long-press Back** and **Long-press Menu**
+action, those presses run them only while reading. Two-finger swipes and edge
+slides do not offer them, because those are easy to trigger by accident.
+
+- **Turn Off** saves your reading position and shows a **Powered off** screen.
+  The device then stays off until you press and hold **Power**, whatever the
+  Power **Short-press** action is.
+- **Restart** saves your reading position, shows **Restarting**, and restarts
+  the device.
+
+Either way, the device starts with the boot screen and reopens the book you
+were reading. If no book was open, it starts on the Home screen.
+
+You do not need a shortcut to use them. Choose **Power** at the end of the Home
+menu, or tap the power icon at the top left of the frontlight panel on the BOOX
+Picco and X4 Pro (swipe down from the top edge) or of the reader-details panel
+on Sticky (swipe down while reading), then choose **Turn Off** or **Restart**.
+On the BOOX Picco, while USB is connected, the **Powered off** screen stays up
+while it charges, and any press of Power turns it back on (see
+[Sleep and charging](./picco.md#sleep-and-charging)).
 
 ## Quick Lock
 

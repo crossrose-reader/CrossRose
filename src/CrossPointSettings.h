@@ -297,6 +297,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     SELECT_CHAPTER = 38,
     ROTATE_FLIP = 39,
     TOGGLE_PAGE_TURN_GESTURES = 40,
+    TURN_OFF = 41,
+    RESTART = 42,
     SHORT_PWRBTN_COUNT
   };
 
@@ -341,6 +343,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     CHORD_SELECT_CHAPTER = 34,
     CHORD_ROTATE_FLIP = 35,
     CHORD_TOGGLE_PAGE_TURN_GESTURES = 36,
+    CHORD_TURN_OFF = 37,
+    CHORD_RESTART = 38,
     POWER_CHORD_ACTION_COUNT
   };
 
@@ -438,6 +442,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     LONG_MENU_SELECT_CHAPTER = 27,
     LONG_MENU_ROTATE_FLIP = 28,
     LONG_MENU_TOGGLE_PAGE_TURN_GESTURES = 29,
+    LONG_MENU_TURN_OFF = 30,
+    LONG_MENU_RESTART = 31,
     LONG_PRESS_MENU_ACTION_COUNT
   };
 

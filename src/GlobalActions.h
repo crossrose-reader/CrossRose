@@ -38,6 +38,8 @@ inline bool isPowerButtonActionAvailableOutsideReader(const CrossPointSettings::
     case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
     case CrossPointSettings::SHORT_PWRBTN::HOME_READER:
     case CrossPointSettings::SHORT_PWRBTN::BACK_HOME:
+    case CrossPointSettings::SHORT_PWRBTN::TURN_OFF:
+    case CrossPointSettings::SHORT_PWRBTN::RESTART:
       return true;
     case CrossPointSettings::SHORT_PWRBTN::IGNORE:
     case CrossPointSettings::SHORT_PWRBTN::PAGE_TURN:
@@ -63,6 +65,16 @@ inline bool isPowerButtonActionAvailableOutsideReader(const CrossPointSettings::
 }
 
 void enterDeepSleep(bool fromTimeout = false);
+
+// Turn Off and Restart tear down every activity (saving reading progress and
+// settings) before they power down or reboot, so they must not run while an
+// activity's loop() or a popup callback is still on the stack. Callers anywhere
+// on the main task queue the request; the main loop runs it at the start of its
+// next iteration, before any activity code. Do not call from the render task.
+enum class PowerAction : uint8_t { None, TurnOff, Restart };
+void requestPowerAction(PowerAction action);
+// True from requestPowerAction() until the main loop starts running it.
+bool isPowerActionPending();
 bool handleGlobalPowerButtonAction(CrossPointSettings::SHORT_PWRBTN action,
                                    QuickLockTrigger quickLockTrigger = QuickLockTrigger::None);
 bool dispatchShortcutAction(CrossPointSettings::SHORT_PWRBTN action);

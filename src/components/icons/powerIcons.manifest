@@ -1,0 +1,7 @@
+# Power menu icon for the top drop-down panel header (24) and the Home menu (32).
+# Regenerate with a Python that has Pillow, plus rsvg-convert, e.g.:
+# python3 scripts/generate_icons.py --library lucide \
+#   --manifest src/components/icons/powerIcons.manifest \
+#   --sizes 24,32 --out src/components/icons/powerIcons.h
+# then clang-format -i the output.
+power = power

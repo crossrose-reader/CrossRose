@@ -27,6 +27,9 @@ Moving the switch during sleep is ignored when the reader wakes.
 - Outside a book, swipe up from the bottom edge to return Home.
 - Adjust brightness and warmth in the frontlight panel. Its icons follow any
   changes made with the slide switch.
+- Tap the power icon at the top left of the frontlight panel to choose
+  **Turn Off** or **Restart**. See
+  [Turn Off and Restart](./controls.md#turn-off-and-restart).
 
 Two-finger gestures appear in Controls only when the touchscreen supports them.
 See [Controls](./controls.md) for pinch, rotation, and swipe options.
@@ -37,6 +40,11 @@ Sleeping turns the frontlight off. **Settings > Display > Frontlight > Restore
 Light on Wake** controls whether it comes back on when you wake the reader.
 Press Power to wake it. While plugged into USB, the sleep image stays visible;
 it does not show live charging updates.
+
+**Turn Off** also turns the frontlight off. On battery, the reader then stays
+off until you press and hold Power. While plugged into USB, it behaves like
+sleep: the **Powered off** screen stays up while it charges, and any press of
+Power turns it back on.
 
 ## Installation and updates
 

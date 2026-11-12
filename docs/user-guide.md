@@ -99,6 +99,8 @@ You can also open the Reader Menu while reading, go to the **Bookmarks** tab, an
 
 By default, **press and hold the Power button for about half a second** to put the device to sleep or wake it. In **Settings > Controls > Power Button** you can set the short-press and long-press actions separately. A short press wakes the device only when the short-press action is **Sleep/Wake** or **Wake**; otherwise, hold Power for about half a second to wake it. See [Controls](#363-controls) for details.
 
+To turn the device off or restart it, choose **Power** at the end of the Home menu, tap the power icon at the top left of the frontlight panel (BOOX Picco and X4 Pro; on Sticky, the reader-details panel), or assign **Turn Off** or **Restart** to a button shortcut. Both save your reading position. After **Turn Off**, the device stays off until you press and hold Power; it then shows the boot screen and reopens the book you were reading, if one was open. **Restart** reboots straight away and does the same. See [Turn Off and Restart](./controls.md#turn-off-and-restart).
+
 If the device freezes, or after a firmware update, restart it: press and release the **Reset** button, then quickly press and hold **Power** for a few seconds. If the device keeps restarting, see [Escaping a bootloop](#7-troubleshooting-issues--escaping-bootloop).
 
 ### First Launch
@@ -114,7 +116,7 @@ Upon turning the device on for the first time, you will be placed on the **[Home
 
 ### 3.1 Home Screen
 
-The Home screen is the main menu. It shows the book you are reading and these entries: **[Browse Files](#33-browse-files-screen)**, **[Library](#34-library-screen)**, **OPDS Browser** (once you have added an OPDS server), **Reading Stats** and **Bookmarks**/**Clippings** (when there is something to show), **[File Transfer](#35-file-transfer-screen)**, and **[Settings](#36-settings)**. The layout depends on your **UI Theme**. To start reading, see **[Reading Mode](#4-reading-mode)**.
+The Home screen is the main menu. It shows the book you are reading and these entries: **[Browse Files](#33-browse-files-screen)**, **[Library](#34-library-screen)**, **OPDS Browser** (once you have added an OPDS server), **Reading Stats** and **Bookmarks**/**Clippings** (when there is something to show), **[File Transfer](#35-file-transfer-screen)**, **[Settings](#36-settings)**, and **Power**, which asks whether to **Turn Off** or **Restart** the device. The layout depends on your **UI Theme**. **Power** is always the last item of the menu: the last icon in the bottom row in **Lyra Carousel**, the last tab in **Cover Grid**, and the last row in the other themes, including the **Minimal** and **Dashboard** menu panel. To start reading, see **[Reading Mode](#4-reading-mode)**.
 
 To add extra services, enable **Settings > System > Plugins**, then open
 **Home > Plugins**. See [Plugins](./sd-plugins.md) for Plugin Hub, manual
@@ -328,6 +330,7 @@ Which entries you see depends on your device. Button devices show **Front Button
   - "Sleep/Wake" (default long-press action) - Put the awake device to sleep; when selected as the short-press action, a short press also wakes it
   - "Sleep" - Put the awake device to sleep without enabling short-press wake
   - "Wake" - When selected as the short-press action, a short press wakes the device; does nothing while the device is awake
+  - "Turn Off" or "Restart" - Save your reading position and turn the device off (press and hold Power to turn it back on) or restart it; see [Turn Off and Restart](./controls.md#turn-off-and-restart)
   - "Next Page" - Turn to the next page while reading
   - "Toggle Bookmark", "Reading Stats", "Mark Finished", "Refresh", "Change Font", "Guide Dots", "Focus Reading", "Auto Page Turn", "Sync Book", "File Transfer", "Calibre Wireless", "Join a Network", "Create Hotspot", "Screenshot", "Dark Mode", "Browse Files", "Library", or "Save Clipping" - Run the matching action
   - "Footnotes" - Select a footnote reference on the current page, with a list fallback when needed; see [Footnote Navigation](#footnote-navigation).
